@@ -17,9 +17,10 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@agentic-company-researcher/db": "workspace:*",
+    "@paralleldrive/cuid2": "^3.0.4",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
-    "zod": "catalog:",
-    "@agentic-company-researcher/db": "workspace:*"
+    "zod": "catalog:"
   }
 }

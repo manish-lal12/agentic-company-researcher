@@ -1,10 +1,187 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../generated"
+  provider     = "prisma-client"
+  output       = "../generated"
   moduleFormat = "esm"
-  runtime = "nodejs"
+  runtime      = "nodejs"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+// ============================================
+// AUTHENTICATION MODELS (Better-Auth)
+// ============================================
+
+model User {
+  id            String   @id @map("_id")
+  name          String
+  email         String   @unique
+  emailVerified Boolean
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions         Session[]
+  accounts         Account[]
+  researchSessions ResearchSession[]
+  accountPlans     AccountPlan[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @map("_id")
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @map("_id")
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id @map("_id")
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@map("verification")
+}
+
+// ============================================
+// COMPANY & RESEARCH MODELS
+// ============================================
+
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  website     String?
+  industry    String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  researchFindings ResearchFinding[]
+  accountPlans     AccountPlan[]
+
+  @@index([name])
+  @@map("company")
+}
+
+model ResearchSession {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status    String    @default("active") // active, paused, completed
+  mode      String // "chat" or "voice"
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  messages    ConversationMessage[]
+  findings    ResearchFinding[]
+  accountPlan AccountPlan?
+
+  @@index([userId])
+  @@map("research_session")
+}
+
+model ConversationMessage {
+  id        String          @id @default(cuid())
+  sessionId String
+  session   ResearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  role      String // "user" or "assistant"
+  content   String   @db.Text
+  timestamp DateTime @default(now())
+  metadata  Json? // Store voice metadata, etc.
+
+  @@index([sessionId])
+  @@map("conversation_message")
+}
+
+model ResearchFinding {
+  id        String          @id @default(cuid())
+  sessionId String
+  session   ResearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  category   String // "financials", "leadership", "products", "market_position", etc.
+  title      String
+  content    String   @db.Text
+  source     String? // URL or source name
+  confidence Float? // 0-1 score for data quality
+  createdAt  DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([companyId])
+  @@map("research_finding")
+}
+
+model AccountPlan {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  sessionId String          @unique
+  session   ResearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  title     String
+  status    String   @default("draft") // draft, in_review, finalized
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sections PlanSection[]
+
+  @@index([userId])
+  @@index([companyId])
+  @@map("account_plan")
+}
+
+model PlanSection {
+  id     String      @id @default(cuid())
+  planId String
+  plan   AccountPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  title     String
+  content   String   @db.Text
+  order     Int
+  editable  Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  @@unique([planId, order])
+  @@index([planId])
+  @@map("plan_section")
 }
