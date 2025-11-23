@@ -1,0 +1,30 @@
+{
+  "name": "agentic-company-researcher",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "check-types": "turbo check-types",
+    "dev:native": "turbo -F native dev",
+    "dev:web": "turbo -F web dev",
+    "dev:server": "turbo -F server dev",
+    "db:push": "turbo -F @agentic-company-researcher/db db:push",
+    "db:studio": "turbo -F @agentic-company-researcher/db db:studio",
+    "db:generate": "turbo -F @agentic-company-researcher/db db:generate",
+    "db:migrate": "turbo -F @agentic-company-researcher/db db:migrate"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "@types/node": "^22.13.11"
+  },
+  "packageManager": "pnpm@10.16.1"
+}
