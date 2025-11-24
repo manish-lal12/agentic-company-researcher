@@ -654,7 +654,7 @@ Please generate a comprehensive account plan for this company with all required 
           "No matching sections found to update. Structured data keys:",
           Object.keys(structuredData),
           "Section titles:",
-          session.accountPlan.sections.map((s) => s.title)
+          session.accountPlan.sections.map((s: { title: string }) => s.title)
         );
       }
 
