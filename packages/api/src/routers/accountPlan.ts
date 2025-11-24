@@ -8,6 +8,7 @@ export const accountPlanRouter = router({
     // Fetch all account plans for this user from database
     const plans = await prisma.accountPlan.findMany({
       where: { userId: ctx.session.user.id },
+      orderBy: { createdAt: "desc" }, // Recent first, same as research sessions
       include: {
         company: true,
         session: true,
@@ -157,6 +158,55 @@ export const accountPlanRouter = router({
       });
 
       return updatedPlan;
+    }),
+
+  updateSection: protectedProcedure
+    .input(
+      z.object({
+        planId: z.string(),
+        sectionId: z.string(),
+        title: z.string().optional(),
+        content: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Verify user owns this plan
+      const plan = await prisma.accountPlan.findUnique({
+        where: { id: input.planId },
+      });
+
+      if (!plan) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Plan not found",
+        });
+      }
+
+      if (plan.userId !== ctx.session.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You don't have permission to update this plan",
+        });
+      }
+
+      // Update the specific section
+      const updatedSection = await prisma.planSection.update({
+        where: { id: input.sectionId },
+        data: {
+          title: input.title,
+          content: input.content,
+          updatedAt: new Date(),
+          updatedBy: ctx.session.user.id,
+        },
+      });
+
+      // Also update the parent plan's updatedAt
+      await prisma.accountPlan.update({
+        where: { id: input.planId },
+        data: { updatedAt: new Date() },
+      });
+
+      return updatedSection;
     }),
 
   delete: protectedProcedure

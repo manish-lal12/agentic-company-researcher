@@ -1,36 +1,3 @@
-/**
- * LLM Service using Vercel AI SDK 5.x
- * Unified interface for multiple providers without vendor lock-in
- *
- * Supported Providers:
- * - OpenAI (gpt-4, gpt-4-turbo, gpt-3.5-turbo)
- * - Anthropic (claude-3-opus, claude-3-sonnet, claude-3-haiku)
- * - Google Gemini (gemini-pro, gemini-1.5-pro, gemini-1.5-flash)
- * - Ollama (local models: mistral, llama2, neural-chat, etc.)
- * - Mistral, Groq, Together, AWS Bedrock (with additional packages)
- *
- * Usage Examples:
- *   import { generateText, chat, streamChat } from './services/llm'
- *
- *   // Simple text generation
- *   const result = await generateText({ prompt: 'Hello!', provider: 'openai' })
- *   console.log(result.text)
- *
- *   // Chat with history
- *   const response = await chat({
- *     messages: [{ role: 'user', content: 'What is AI?' }],
- *     provider: 'anthropic'
- *   })
- *
- *   // Stream response
- *   const stream = await streamChat({
- *     messages: [{ role: 'user', content: 'Explain quantum computing' }]
- *   })
- *   for await (const chunk of stream.textStream) {
- *     process.stdout.write(chunk)
- *   }
- */
-
 import { generateText as aiGenerateText, streamText as aiStreamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
@@ -72,6 +39,16 @@ function getModel(config: LLMConfig) {
   const model = config.model || process.env.LLM_MODEL || "gpt-4";
 
   switch (provider) {
+    case "grok":
+    case "xai": {
+      // Grok uses OpenAI-compatible API
+      const grok = createOpenAI({
+        apiKey: config.apiKey || process.env.XAI_API_KEY,
+        baseURL: config.baseUrl || "https://api.x.ai/v1",
+      });
+      return grok(model);
+    }
+
     case "anthropic":
     case "claude": {
       const anthropic = createAnthropic({
@@ -85,7 +62,10 @@ function getModel(config: LLMConfig) {
       const google = createGoogleGenerativeAI({
         apiKey: config.apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY,
       });
-      return google(model);
+      // Google models need to be passed with correct naming
+      // The @ai-sdk/google uses model ID directly without prefix
+      const modelId = config.model || process.env.LLM_MODEL || "gemini-pro";
+      return google(modelId);
     }
 
     case "openai":

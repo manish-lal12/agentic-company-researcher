@@ -34,7 +34,7 @@ export default function ResearchSessionsPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Research Sessions</h1>
         <button
-          onClick={() => (router as any).push("/dashboard/research/new")}
+          onClick={() => (router as any).push("/dashboard")}
           className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
         >
           + New Research Session

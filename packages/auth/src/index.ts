@@ -4,10 +4,27 @@ import { createId } from "@paralleldrive/cuid2";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import type { BetterAuthOptions } from "better-auth/types";
 
+const serverUrl = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+const clientOrigins = [
+  process.env.CORS_ORIGIN || "http://localhost:3001",
+  process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001",
+];
+
 export const auth = betterAuth<BetterAuthOptions>({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  basePath: "/api/auth",
+  baseURL: serverUrl,
+  trustedOrigins: clientOrigins,
+  session: {
+    expiresIn: 60 * 60 * 24 * 7, // 7 days
+    updateAge: 60 * 60 * 24, // update session every day
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60, // 5 minutes
+    },
+  },
   advanced: {
     database: {
       generateId: (_options: { model: string; size?: number }) => {

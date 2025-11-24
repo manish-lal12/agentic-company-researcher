@@ -65,7 +65,7 @@ export default function ResearchSessionDetail() {
   }
 
   return (
-    <div className="h-[calc(100vh-100px)]">
+    <div className="h-full flex flex-col overflow-hidden">
       <ChatInterface sessionId={sessionId} mode={session.mode || "chat"} />
     </div>
   );

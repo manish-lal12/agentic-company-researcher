@@ -1,84 +1,506 @@
-// apps/web/src/components/research/ChatInterface.tsx
+"use client";
 
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { MessageList } from "./MessageList";
 import { MessageInput } from "./MessageInput";
-import { FindingsList } from "./FindingsList";
+import { PlanEmptyState } from "./PlanEmptyState";
+import { WelcomeSection } from "./WelcomeSection";
+import { FollowUpSuggestions } from "./FollowUpSuggestions";
+import { ResearchProgress } from "./ResearchProgress";
 import { trpc } from "@/lib/trpc";
+
+// Move constant outside component to prevent recreation on every render
+const PANEL_SECTIONS = [
+  "Company Overview",
+  "Products & Services",
+  "Key Stakeholders",
+  "Financial Position",
+  "Market & Competition",
+  "SWOT Analysis",
+  "Strategic Opportunities",
+  "Risks & Considerations",
+  "Recommended Strategy",
+  "Research Notes",
+] as const;
 
 interface ChatInterfaceProps {
   sessionId: string;
   mode: "chat" | "voice";
+  isNewSession?: boolean;
 }
 
-export function ChatInterface({ sessionId, mode }: ChatInterfaceProps) {
-  const [messages, setMessages] = useState<
-    Array<{ id: string; role: string; content: string }>
-  >([]);
-  const [findings, setFindings] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+export function ChatInterface({
+  sessionId: initialSessionId,
+  mode,
+  isNewSession = false,
+}: ChatInterfaceProps) {
+  const router = useRouter();
 
-  const handleSendMessage = async (content: string) => {
-    // Add user message
-    const userMessage = {
-      id: Date.now().toString(),
-      role: "user",
-      content,
-    };
-    setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
+  const [localIsNewSession, setLocalIsNewSession] = useState(isNewSession);
 
-    try {
-      // Call tRPC mutation to send message to AI agent
-      const response = await trpc.agent.askQuestion.mutate({
-        sessionId,
-        question: content,
-      });
-      // Add AI response
-      const assistantMessage = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content:
-          typeof response === "string" ? response : JSON.stringify(response),
+  const [session, setSession] = useState({
+    id: initialSessionId,
+    companyName: "",
+    reportContent: "",
+    hasReport: false,
+  });
+
+  const [accountPlan, setAccountPlan] = useState<any>(null);
+
+  const [ui, setUI] = useState({
+    isLoading: false,
+    isInitializing: true,
+    isLoadingReport: false,
+    progress: "idle" as
+      | "idle"
+      | "researching"
+      | "analyzing"
+      | "complete"
+      | "error",
+  });
+
+  const [data, setData] = useState({
+    messages: [] as Array<{ id: string; role: string; content: string }>,
+    findings: [] as any[],
+    conflicts: [] as any[],
+    followUpSuggestions: [] as string[],
+  });
+
+  const [structuredData, setStructuredData] = useState<
+    Record<
+      string,
+      {
+        title: string;
+        content: string;
+        confidence: number;
+        dataPoints: string[];
+        sources?: string[];
+        conflicts?: Array<{
+          claim: string;
+          sources: string[];
+          resolution?: string;
+        }>;
+      }
+    >
+  >({});
+
+  useEffect(() => {
+    if (!localIsNewSession && initialSessionId !== "temp") {
+      const fetchSessionData = async () => {
+        try {
+          const sessionData = await trpc.research.get.query({
+            sessionId: initialSessionId,
+          });
+
+          if (sessionData) {
+            setSession((s) => ({
+              ...s,
+              id: sessionData.id,
+              companyName: sessionData.companyName || "",
+            }));
+
+            if (sessionData.accountPlan) {
+              setAccountPlan(sessionData.accountPlan);
+            }
+
+            if (sessionData.messages?.length > 0) {
+              setData((d) => ({
+                ...d,
+                messages: sessionData.messages.map((msg: any) => ({
+                  id: msg.id,
+                  role: msg.role,
+                  content: msg.content,
+                })),
+              }));
+            }
+
+            if (sessionData.findings?.length > 0) {
+              setData((d) => ({
+                ...d,
+                findings: sessionData.findings,
+              }));
+            }
+
+            // Load structured data from session on page reload
+            const structData = (sessionData as any)?.structuredData;
+            if (structData && typeof structData === "object") {
+              setStructuredData(structData);
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load session data:", err);
+        } finally {
+          setUI((u) => ({ ...u, isInitializing: false }));
+        }
       };
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      console.error("Failed to send message:", error);
-    } finally {
-      setIsLoading(false);
+
+      fetchSessionData();
+    } else {
+      setUI((u) => ({ ...u, isInitializing: false }));
+    }
+  }, [initialSessionId, localIsNewSession]);
+
+  const addMessage = useCallback((role: string, content: string) => {
+    const msg = { id: String(Date.now()), role, content };
+    setData((d) => ({ ...d, messages: [...d.messages, msg] }));
+  }, []);
+
+  const setProgress = (progress: typeof ui.progress) => {
+    setUI((u) => ({ ...u, progress }));
+    if (["complete", "error"].includes(progress)) {
+      setTimeout(() => {
+        setUI((u) => ({ ...u, progress: "idle" }));
+      }, 2000);
     }
   };
 
-  const handleExportFindings = () => {
-    // Export findings as JSON
-    const dataStr = JSON.stringify(findings, null, 2);
-    const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `findings-${sessionId}-${new Date().toISOString()}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const handleSendMessage = async (content: string) => {
+    let currentId = session.id;
+
+    if (localIsNewSession && session.id === "temp") {
+      try {
+        const created = await trpc.research.create.mutate({ mode: "chat" });
+        currentId = created.id;
+        setSession((s) => ({ ...s, id: created.id }));
+        setLocalIsNewSession(false);
+      } catch (e: any) {
+        console.error("Failed to create session:", e);
+        if (e?.code === "UNAUTHORIZED") router.push("/login");
+        return;
+      }
+    }
+
+    try {
+      const result = await trpc.research.extractCompanyName.mutate({
+        text: content,
+      });
+
+      if (result.companyName) {
+        setSession((s) => ({ ...s, companyName: result.companyName || "" }));
+        try {
+          await trpc.research.updateSessionCompanyName.mutate({
+            sessionId: currentId,
+            companyName: result.companyName,
+          });
+        } catch (e) {
+          console.error("Failed to update company name:", e);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to extract company name:", e);
+    }
+
+    addMessage("user", content);
+
+    setUI((u) => ({ ...u, isLoading: true }));
+    setProgress("researching");
+
+    try {
+      const response = await trpc.agent.askQuestion.mutate({
+        sessionId: currentId,
+        question: content,
+      });
+
+      setProgress("analyzing");
+
+      // Batch all state updates together to prevent flickering
+      // Update data (findings, conflicts, suggestions)
+      setData((d) => ({
+        ...d,
+        findings: [...d.findings, ...(response.findings ?? [])],
+        conflicts: [...d.conflicts, ...(response.conflicts ?? [])],
+        followUpSuggestions: response.followUpSuggestions ?? [],
+      }));
+
+      // Update structured data for right panel (batch update to prevent flickering)
+      if (
+        response.structuredData &&
+        Object.keys(response.structuredData).length > 0
+      ) {
+        console.log("Received structured data:", response.structuredData);
+        // Use functional update to ensure we're working with latest state
+        setStructuredData((prev) => {
+          // Merge new data with existing, preserving what we have
+          const merged = { ...prev };
+          Object.entries(response.structuredData).forEach(([key, value]) => {
+            if (value && (value as any).content) {
+              merged[key] = value as any;
+            }
+          });
+          return merged;
+        });
+      } else {
+        console.warn("No structured data received from agent response");
+      }
+
+      // Add assistant message BEFORE sync to show response immediately
+      addMessage("assistant", response.assistantMessage?.content || "");
+
+      // Sync structured data to plan sections (single call, use result directly)
+      try {
+        console.log("Syncing structured data to plan for session:", currentId);
+        const syncResult = await trpc.research.syncStructuredDataToPlan.mutate({
+          sessionId: currentId,
+        });
+        console.log("Sync result:", syncResult);
+        if (syncResult.plan) {
+          console.log(
+            "Updated plan from sync, sections:",
+            syncResult.plan.sections?.length
+          );
+          // Use sync result directly - no need to re-fetch
+          setAccountPlan(syncResult.plan);
+        }
+      } catch (err) {
+        console.error("Failed to sync structured data to plan:", err);
+      }
+
+      if (session.companyName) {
+        setUI((u) => ({ ...u, isLoadingReport: true }));
+        try {
+          const report = await trpc.research.getReport.mutate({
+            sessionId: currentId,
+          });
+
+          setSession((s) => ({
+            ...s,
+            reportContent: report.content,
+            hasReport: true,
+          }));
+        } catch (err) {
+          setSession((s) => ({ ...s, reportContent: "", hasReport: false }));
+        } finally {
+          setUI((u) => ({ ...u, isLoadingReport: false }));
+        }
+      }
+
+      setProgress("complete");
+
+      if (!localIsNewSession && session.id !== "temp") {
+        window.history.replaceState(
+          null,
+          "",
+          `/dashboard/research/${currentId}`
+        );
+      }
+    } catch (e) {
+      addMessage(
+        "assistant",
+        "Sorry, I encountered an error processing your request. Please try again."
+      );
+      setProgress("error");
+    } finally {
+      setUI((u) => ({ ...u, isLoading: false }));
+    }
+  };
+
+  const handleFollowUpSuggestion = (s: string) => {
+    setData((d) => ({ ...d, followUpSuggestions: [] }));
+    handleSendMessage(s);
   };
 
   return (
-    <div className="h-full grid grid-cols-1 md:grid-cols-[1fr_350px] gap-4">
-      {/* Main Chat Area */}
-      <div className="flex flex-col bg-white rounded-lg border overflow-hidden">
-        <MessageList messages={messages} isLoading={isLoading} />
+    <div className="h-full grid gap-4 grid-cols-1 md:grid-cols-[1fr_320px]">
+      {/* Left Panel */}
+      <div className="flex flex-col bg-background border rounded-lg overflow-hidden min-h-0">
+        {ui.progress !== "idle" && (
+          <div className="border-b p-3 bg-muted/40 shrink-0">
+            <ResearchProgress
+              status={ui.progress}
+              message={
+                ui.progress === "researching"
+                  ? "Gathering research…"
+                  : ui.progress === "analyzing"
+                  ? "Analyzing findings…"
+                  : ui.progress === "complete"
+                  ? "Done"
+                  : ui.progress === "error"
+                  ? "An error occurred"
+                  : ""
+              }
+            />
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {data.messages.length > 0 && (
+            <MessageList
+              messages={data.messages}
+              isLoading={ui.isLoading}
+              isInitializing={ui.isInitializing}
+            />
+          )}
+
+          {data.messages.length === 0 && !ui.isLoading && (
+            <div className="px-4 pb-4">
+              <WelcomeSection
+                onPromptClick={handleSendMessage}
+                isLoading={ui.isLoading}
+              />
+            </div>
+          )}
+        </div>
+
+        {data.followUpSuggestions.length > 0 && !ui.isLoading && (
+          <div className="px-4 pb-2 shrink-0">
+            <FollowUpSuggestions
+              suggestions={data.followUpSuggestions}
+              onSuggestClick={handleFollowUpSuggestion}
+              isLoading={ui.isLoading}
+            />
+          </div>
+        )}
+
         <MessageInput
           onSendMessage={handleSendMessage}
-          disabled={isLoading}
+          disabled={ui.isLoading}
           mode={mode}
-          sessionId={sessionId}
+          sessionId={session.id}
         />
       </div>
 
       {/* Right Sidebar */}
-      <div className="space-y-4 overflow-y-auto">
-        <FindingsList findings={findings} sessionId={sessionId} />
+      <div className="hidden md:flex flex-col min-h-0">
+        <div className="bg-background border rounded-lg flex flex-col overflow-hidden h-full">
+          <div className="border-b p-4 bg-muted/40 shrink-0">
+            <h2 className="text-sm font-medium">Research Analysis</h2>
+            {session.companyName && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {session.companyName}
+              </p>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+            {PANEL_SECTIONS.map((sectionTitle) => {
+              const sectionData = structuredData[sectionTitle];
+              // Check if section is pending: either missing OR has confidence 0
+              const isPending =
+                !sectionData ||
+                sectionData.confidence === 0 ||
+                !sectionData.content;
+
+              return (
+                <div
+                  key={sectionTitle}
+                  className={`border rounded-md p-3 transition-colors ${
+                    isPending
+                      ? "bg-muted/20 border-dashed opacity-60"
+                      : "bg-background hover:bg-muted/40"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-sm font-medium flex-1">
+                      {sectionTitle}
+                    </h3>
+                    {isPending ? (
+                      <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">
+                        Pending
+                      </span>
+                    ) : (
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                        {Math.round(sectionData.confidence * 100)}%
+                      </span>
+                    )}
+                  </div>
+
+                  {isPending ? (
+                    <p className="text-xs text-muted-foreground italic mt-2">
+                      Waiting for research data...
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {sectionData.content}
+                      </p>
+
+                      {sectionData.dataPoints &&
+                        sectionData.dataPoints.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {sectionData.dataPoints.map((point, pidx) => (
+                              <div
+                                key={pidx}
+                                className="text-xs text-foreground/80 flex items-start gap-2"
+                              >
+                                <span className="text-blue-600 mt-0.5">•</span>
+                                <span>{point}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                      {/* Show sources */}
+                      {sectionData.sources &&
+                        sectionData.sources.length > 0 && (
+                          <div className="mt-3 pt-2 border-t border-border/30">
+                            <p className="text-xs font-medium text-foreground/70 mb-1">
+                              Sources:
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              {sectionData.sources.map(
+                                (source: string, sidx: number) => (
+                                  <span
+                                    key={sidx}
+                                    className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded-sm"
+                                  >
+                                    {source}
+                                  </span>
+                                )
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                      {/* Show conflicts if they exist */}
+                      {sectionData.conflicts &&
+                        sectionData.conflicts.length > 0 && (
+                          <div className="mt-3 pt-2 border-t border-amber-200 bg-amber-50/50 rounded p-2">
+                            <p className="text-xs font-medium text-amber-800 mb-1">
+                              ⚠️ Conflicting Information:
+                            </p>
+                            {sectionData.conflicts.map(
+                              (conflict: any, cidx: number) => (
+                                <div
+                                  key={cidx}
+                                  className="text-xs text-amber-700 mb-1"
+                                >
+                                  <p className="font-medium">
+                                    {conflict.claim}
+                                  </p>
+                                  <p className="text-amber-600">
+                                    Sources:{" "}
+                                    {conflict.sources?.join(", ") || "N/A"}
+                                  </p>
+                                  {conflict.resolution && (
+                                    <p className="text-amber-700 italic mt-0.5">
+                                      Resolution: {conflict.resolution}
+                                    </p>
+                                  )}
+                                </div>
+                              )
+                            )}
+                          </div>
+                        )}
+
+                      {/* Dig deeper button */}
+                      <button
+                        onClick={() =>
+                          handleSendMessage(
+                            `I'd like to dig deeper into "${sectionTitle}". Can you provide more detailed analysis, additional sources, and any conflicting information?`
+                          )
+                        }
+                        className="text-xs text-blue-600 hover:text-blue-700 mt-2 font-medium"
+                      >
+                        🔍 Dig Deeper
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );

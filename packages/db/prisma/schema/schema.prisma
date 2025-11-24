@@ -9,10 +9,6 @@ datasource db {
   provider = "postgresql"
 }
 
-// ============================================
-// AUTHENTICATION MODELS (Better-Auth)
-// ============================================
-
 model User {
   id            String   @id @map("_id")
   name          String
@@ -74,10 +70,6 @@ model Verification {
   @@map("verification")
 }
 
-// ============================================
-// COMPANY & RESEARCH MODELS
-// ============================================
-
 model Company {
   id          String   @id @default(cuid())
   name        String
@@ -99,10 +91,13 @@ model ResearchSession {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  status    String    @default("active") // active, paused, completed
-  mode      String // "chat" or "voice"
-  startedAt DateTime  @default(now())
-  endedAt   DateTime?
+  status         String    @default("active") // active, paused, completed
+  mode           String // "chat" or "voice"
+  name           String? // Generated or custom name for the session
+  companyName    String? // Company being researched
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+  structuredData Json?     @default("{}") // Stores structured business analysis data from LLM
 
   messages    ConversationMessage[]
   findings    ResearchFinding[]
@@ -174,12 +169,16 @@ model PlanSection {
   planId String
   plan   AccountPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 
-  title     String
-  content   String   @db.Text
-  order     Int
-  editable  Boolean  @default(true)
-  updatedAt DateTime @updatedAt
-  updatedBy String?
+  title      String
+  content    String   @db.Text
+  order      Int
+  editable   Boolean  @default(true)
+  updatedAt  DateTime @updatedAt
+  updatedBy  String?
+  confidence Float    @default(0.5) // 0-1 score indicating data completeness
+  dataPoints String[] @default([]) // Array of specific facts/data points
+  sources    String[] @default([]) // NEW: Sources of information (e.g., "Company Website", "SEC Filings")
+  conflicts  Json?    @default("[]") // NEW: Array of conflicting information with sources
 
   @@unique([planId, order])
   @@index([planId])

@@ -32,12 +32,20 @@ export default function AccountPlansPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Account Plans</h1>
-        <button
-          onClick={() => (router as any).push("/dashboard/research/new")}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          + Generate Plan from Research
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => (router as any).push("/dashboard/plans/new")}
+            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+          >
+            + Create New Plan
+          </button>
+          <button
+            onClick={() => (router as any).push("/dashboard/research/new")}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            + Generate Plan from Research
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4">

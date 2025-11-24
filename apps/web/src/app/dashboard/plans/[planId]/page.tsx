@@ -2,26 +2,54 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { MarkdownEditor } from "@/components/research/MarkdownEditor";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { PlanMetadataPanel } from "@/components/plans/PlanMetadataPanel";
+
+// Add styles for update animation
+const styles = `
+  @keyframes contentUpdate {
+    0% {
+      background-color: rgba(59, 130, 246, 0.1);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+  .content-updating {
+    animation: contentUpdate 2s ease-out;
+  }
+`;
 
 export default function PlanDetailPage() {
   const params = useParams();
   const router = useRouter();
   const planId = params.planId as string;
+
   const [plan, setPlan] = useState<any>(null);
+  const [planContent, setPlanContent] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isContentUpdating, setIsContentUpdating] = useState(false);
 
+  // Fetch plan details
   useEffect(() => {
     const fetchPlan = async () => {
       try {
+        setIsLoading(true);
         // Fetch plan from tRPC
         const data = await trpc.accountPlan.get.query({ planId });
         setPlan(data);
+
+        // Convert sections to markdown
+        if (data?.sections) {
+          const content = data.sections
+            .map((s: any) => `## ${s.title}\n${s.content}`)
+            .join("\n\n");
+          setPlanContent(content);
+        }
         setIsLoading(false);
       } catch (err) {
         setError("Failed to load plan");
@@ -34,60 +62,46 @@ export default function PlanDetailPage() {
     }
   }, [planId]);
 
-  const handleExport = async () => {
-    setIsExporting(true);
+  const handleSavePlan = async (content: string) => {
     try {
-      // Call tRPC to export plan in JSON format
-      const exportData = await trpc.accountPlan.export.query({
+      // Parse sections from markdown
+      const sections = content
+        .split(/^##\s+/m)
+        .filter((s) => s.trim().length > 0)
+        .map((section, idx) => {
+          const lines = section.split("\n");
+          const title = lines[0]?.trim() || `Section ${idx + 1}`;
+          const sectionContent = lines.slice(1).join("\n").trim();
+          return { title, content: sectionContent, order: idx };
+        });
+
+      // Update plan with all sections at once
+      await trpc.accountPlan.update.mutate({
         planId,
-        format: "markdown",
+        sections,
       });
 
-      // Create a blob from the exported data
-      const blob = new Blob([exportData.data], {
-        type: exportData.contentType,
-      });
-
-      // Create download link and trigger download
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${exportData.filename}.md`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      toast.success("Plan exported successfully");
-    } catch (err) {
-      console.error("Failed to export plan:", err);
-      toast.error("Failed to export plan");
-    } finally {
-      setIsExporting(false);
+      setPlanContent(content);
+      toast.success("Plan saved successfully");
+    } catch (error) {
+      console.error("Failed to save plan:", error);
+      toast.error("Failed to save plan");
+      throw error;
     }
   };
 
-  const handleDelete = async () => {
-    if (confirm("Are you sure you want to delete this plan?")) {
-      setIsDeleting(true);
-      try {
-        // Call tRPC to delete plan
-        await trpc.accountPlan.delete.mutate({ planId });
-        (router as any).push("/dashboard/plans");
-      } catch (err) {
-        setError("Failed to delete plan");
-        setIsDeleting(false);
-      }
-    }
+  const handleContentUpdate = (updatedContent: string) => {
+    setIsContentUpdating(true);
+    setPlanContent(updatedContent);
+    // Reset animation after 2 seconds
+    setTimeout(() => setIsContentUpdating(false), 2000);
   };
+
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-1/3 bg-gray-200" />
-        <div className="grid gap-4 md:grid-cols-[1fr_320px]">
-          <Skeleton className="h-96 bg-gray-200" />
-          <Skeleton className="h-96 bg-gray-200" />
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-4 h-full">
+        <Skeleton className="h-full bg-gray-200 rounded-lg" />
+        <Skeleton className="h-full bg-gray-200 rounded-lg" />
       </div>
     );
   }
@@ -107,84 +121,30 @@ export default function PlanDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Account Plan</h1>
-        <div className="space-x-2">
-          <button
-            onClick={handleExport}
-            disabled={isExporting}
-            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 disabled:opacity-50"
-          >
-            {isExporting ? "Exporting..." : "Export"}
-          </button>
-          <button
-            onClick={handleDelete}
-            disabled={isDeleting}
-            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50"
-          >
-            {isDeleting ? "Deleting..." : "Delete"}
-          </button>
-          <button
-            onClick={() => router.back()}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Done
-          </button>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-[1fr_320px]">
-        {/* Main Plan Editor */}
-        <div className="bg-white rounded-lg border p-6 space-y-4">
-          <div>
-            <h2 className="font-semibold text-lg mb-4">Plan Sections</h2>
-            {plan.sections && plan.sections.length > 0 ? (
-              <div className="space-y-4">
-                {plan.sections.map((section: any, idx: number) => (
-                  <div
-                    key={section.id || idx}
-                    className="p-4 border rounded bg-gray-50"
-                  >
-                    <h3 className="font-semibold mb-2">
-                      Section {(section.order || idx) + 1}
-                    </h3>
-                    <p className="text-gray-700">{section.content}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500">No sections in this plan</p>
-            )}
-          </div>
+    <>
+      <style>{styles}</style>
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-4 h-full">
+        {/* Markdown Editor */}
+        <div
+          className={`rounded-lg overflow-hidden transition-colors ${
+            isContentUpdating ? "content-updating" : ""
+          }`}
+        >
+          <MarkdownEditor
+            key={planContent}
+            initialContent={planContent}
+            onSave={handleSavePlan}
+            planName={plan.title}
+          />
         </div>
 
-        {/* Sidebar Info */}
-        <div className="bg-white rounded-lg border p-4 space-y-4">
-          <div>
-            <h3 className="font-semibold text-sm mb-1">Plan ID</h3>
-            <p className="text-xs text-gray-600 break-all">{planId}</p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-sm mb-1">Sections</h3>
-            <p className="text-xs text-gray-600">
-              {plan.sections?.length || 0} sections
-            </p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-sm mb-1">Created</h3>
-            <p className="text-xs text-gray-600">
-              {new Date(plan.createdAt).toLocaleDateString()}
-            </p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-sm mb-1">Last Updated</h3>
-            <p className="text-xs text-gray-600">
-              {new Date(plan.updatedAt).toLocaleDateString()}
-            </p>
-          </div>
-        </div>
+        {/* Metadata Panel with Update Prompt */}
+        <PlanMetadataPanel
+          planId={planId}
+          plan={plan}
+          onContentUpdate={handleContentUpdate}
+        />
       </div>
-    </div>
+    </>
   );
 }

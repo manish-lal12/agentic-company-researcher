@@ -132,3 +132,49 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom Scrollbar Styling */
+@layer base {
+  /* Light mode scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: oklch(0.97 0 0); /* Light gray for light mode */
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.8 0 0); /* Medium gray for light mode */
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.65 0 0); /* Darker gray on hover */
+  }
+
+  /* Dark mode scrollbar */
+  .dark ::-webkit-scrollbar-track {
+    background: oklch(0.269 0 0); /* Dark gray for dark mode */
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: oklch(0.4 0 0); /* Medium gray for dark mode */
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.5 0 0); /* Lighter gray on hover */
+  }
+
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.8 0 0) oklch(0.97 0 0); /* thumb track for light mode */
+  }
+
+  .dark * {
+    scrollbar-color: oklch(0.4 0 0) oklch(0.269 0 0); /* thumb track for dark mode */
+  }
+}
