@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "cd ../.. && pnpm install && pnpm build --filter=server",
+  "buildCommand": "cd ../.. && pnpm install && pnpm --filter=@agentic-company-researcher/db db:generate && pnpm --filter=server build",
   "installCommand": "pnpm install",
   "outputDirectory": "dist"
 }
