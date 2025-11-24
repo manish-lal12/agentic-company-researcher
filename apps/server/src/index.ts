@@ -41,14 +41,20 @@ app.get("/", (c) => {
   return c.text("OK");
 });
 
-import { serve } from "@hono/node-server";
+// Export for Vercel serverless
+export default app;
 
-serve(
-  {
-    fetch: app.fetch,
-    port: 3000,
-  },
-  (info) => {
-    console.log(`Server is running on http://localhost:${info.port}`);
-  }
-);
+// Only run local server in development
+if (process.env.NODE_ENV !== "production") {
+  import("@hono/node-server").then(({ serve }) => {
+    serve(
+      {
+        fetch: app.fetch,
+        port: 3000,
+      },
+      (info) => {
+        console.log(`Server is running on http://localhost:${info.port}`);
+      }
+    );
+  });
+}

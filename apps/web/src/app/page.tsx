@@ -14,7 +14,6 @@ import {
   ArrowRight,
   CheckCircle2,
   Terminal,
-  Activity,
 } from "lucide-react";
 
 const TITLE_TEXT = `
@@ -161,7 +160,6 @@ export default function Home() {
               </div>
             </Card>
 
-            {/* Tall Feature */}
             <Card className="md:row-span-2 p-8 border-border/50 hover:border-border transition-colors bg-gradient-to-b from-background to-muted/30">
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 text-primary">
                 <BarChart3 />
@@ -189,7 +187,6 @@ export default function Home() {
               </div>
             </Card>
 
-            {/* Small Feature 1 */}
             <Card className="p-6 border-border/50 hover:border-border transition-colors hover:bg-muted/20">
               <Zap className="w-8 h-8 mb-4 text-amber-500" />
               <h3 className="font-semibold mb-1">Real-time Analysis</h3>
@@ -198,7 +195,6 @@ export default function Home() {
               </p>
             </Card>
 
-            {/* Small Feature 2 */}
             <Card className="p-6 border-border/50 hover:border-border transition-colors hover:bg-muted/20">
               <MessageSquare className="w-8 h-8 mb-4 text-blue-500" />
               <h3 className="font-semibold mb-1">Natural Tone</h3>
@@ -209,7 +205,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Minimal CTA */}
         <section className="container mx-auto max-w-4xl px-4 py-24 text-center">
           <h2 className="text-3xl md:text-4xl font-bold tracking-tighter mb-6">
             Ready to modernize your workflow?
@@ -228,7 +223,6 @@ export default function Home() {
         </section>
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-border/40 py-12 bg-muted/10">
         <div className="container mx-auto max-w-6xl px-4 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2 text-sm font-mono text-muted-foreground">

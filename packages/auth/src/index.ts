@@ -4,10 +4,13 @@ import { createId } from "@paralleldrive/cuid2";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import type { BetterAuthOptions } from "better-auth/types";
 
+// Server URL is where the auth API is hosted (backend)
 const serverUrl = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+// Client URL is where users should be redirected after auth (frontend)
+const clientUrl = process.env.CLIENT_URL || "http://localhost:3001";
 const clientOrigins = [
   process.env.CORS_ORIGIN || "http://localhost:3001",
-  process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3001",
+  clientUrl,
 ];
 
 export const auth = betterAuth<BetterAuthOptions>({
@@ -36,6 +39,7 @@ export const auth = betterAuth<BetterAuthOptions>({
     google: {
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+      redirectURI: `${serverUrl}/api/auth/callback/google`,
     },
   },
 });
