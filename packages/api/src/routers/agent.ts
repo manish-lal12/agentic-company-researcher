@@ -571,7 +571,7 @@ export const agentRouter = router({
       // Generate structured data for right UI panel
       const structuredData = await generateStructuredPlanData(
         assistantResponse,
-        conversationHistory.map((m) => ({ role: m.role, content: m.content }))
+        conversationHistory.map((m: { role: string; content: string }) => ({ role: m.role, content: m.content }))
       );
 
       // Save findings to database
