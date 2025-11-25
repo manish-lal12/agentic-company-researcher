@@ -43,9 +43,9 @@ export default function Home() {
       <main className="flex-1">
         {/* Hero Section */}
         <section className="container mx-auto max-w-6xl px-4 pt-24 pb-16">
-          <div className="flex flex-col items-center text-center space-y-8">
+          <div className="relative flex flex-col items-center text-center space-y-8">
             {/* ASCII Art - Treated as a design texture */}
-            <div className="absolute top-24 left-1/2 -translate-x-1/2">
+            <div className="absolute -top-16 left-1/2 -translate-x-1/2 select-none pointer-events-none">
               <pre className="font-mono text-[12px] leading-2.5 text-foreground/30 dark:text-foreground">
                 {TITLE_TEXT}
               </pre>

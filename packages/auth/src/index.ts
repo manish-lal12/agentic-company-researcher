@@ -5,9 +5,14 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import type { BetterAuthOptions } from "better-auth/types";
 
 // Server URL is where the auth API is hosted (backend)
-const serverUrl = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+const serverUrl = (
+  process.env.BETTER_AUTH_URL || "http://localhost:3000"
+).replace(/\/$/, "");
 // Client URL is where users should be redirected after auth (frontend)
-const clientUrl = process.env.CLIENT_URL || "http://localhost:3001";
+const clientUrl = (process.env.CLIENT_URL || "http://localhost:3001").replace(
+  /\/$/,
+  ""
+);
 
 export const auth = betterAuth<BetterAuthOptions>({
   database: prismaAdapter(prisma, {
@@ -29,6 +34,10 @@ export const auth = betterAuth<BetterAuthOptions>({
       generateId: (_options: { model: string; size?: number }) => {
         return createId();
       },
+    },
+    defaultCookieAttributes: {
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      secure: process.env.NODE_ENV === "production",
     },
   },
   socialProviders: {
