@@ -69,6 +69,15 @@ importers:
       '@hono/trpc-server':
         specifier: ^0.4.0
         version: 0.4.0(@trpc/server@11.7.2(typescript@5.9.3))(hono@4.10.6)
+      '@neondatabase/serverless':
+        specifier: ^1.0.2
+        version: 1.0.2
+      '@prisma/adapter-neon':
+        specifier: ^7.0.0
+        version: 7.0.0
+      '@prisma/client':
+        specifier: 'catalog:'
+        version: 7.0.0(prisma@7.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.3))(typescript@5.9.3)
       '@trpc/server':
         specifier: 'catalog:'
         version: 11.7.2(typescript@5.9.3)
@@ -81,6 +90,9 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.10.6
+      ws:
+        specifier: ^8.18.3
+        version: 8.18.3
       zod:
         specifier: 'catalog:'
         version: 4.1.12

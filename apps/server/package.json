@@ -15,10 +15,14 @@
     "@agentic-company-researcher/db": "workspace:*",
     "@hono/node-server": "^1.14.4",
     "@hono/trpc-server": "^0.4.0",
+    "@neondatabase/serverless": "^1.0.2",
+    "@prisma/adapter-neon": "^7.0.0",
+    "@prisma/client": "catalog:",
     "@trpc/server": "catalog:",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
     "hono": "catalog:",
+    "ws": "^8.18.3",
     "zod": "catalog:"
   },
   "devDependencies": {
