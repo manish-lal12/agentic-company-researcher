@@ -20,18 +20,13 @@ export const queryClient = new QueryClient({
 function getApiUrl() {
   // When runs on server, window is undefined:
   if (typeof window === "undefined") {
-    return process.env.NEXT_PUBLIC_SERVER_URL
-      ? `${process.env.NEXT_PUBLIC_SERVER_URL}/api/trpc`
+    return process.env.SERVER_URL
+      ? `${process.env.SERVER_URL}/api/trpc`
       : "http://localhost:3000/api/trpc";
   }
 
-  // When runs on browser:
-  return (
-    (window as any).__TRPC_SERVER_URL ??
-    (process.env.NEXT_PUBLIC_SERVER_URL
-      ? `${process.env.NEXT_PUBLIC_SERVER_URL}/api/trpc`
-      : "http://localhost:3000/api/trpc")
-  );
+  // When runs on browser, use relative path to go through Next.js proxy
+  return "/api/trpc";
 }
 
 const apiUrl = getApiUrl();

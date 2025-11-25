@@ -22,9 +22,10 @@ export const queryClient = new QueryClient({
 const trpcClient = createTRPCClient<AppRouter>({
   links: [
     httpBatchLink({
-      url: `${
-        process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:3000"
-      }/api/trpc`,
+      url:
+        typeof window === "undefined"
+          ? `${process.env.SERVER_URL || "http://localhost:3000"}/api/trpc`
+          : "/api/trpc",
       fetch(url, options) {
         return fetch(url, {
           ...options,

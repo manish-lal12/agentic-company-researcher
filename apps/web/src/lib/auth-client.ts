@@ -3,6 +3,10 @@ import { createAuthClient } from "better-auth/react";
 import { inferAdditionalFields } from "better-auth/client/plugins";
 
 export const authClient = createAuthClient({
-	baseURL: process.env.NEXT_PUBLIC_SERVER_URL,
-	plugins: [inferAdditionalFields<typeof auth>()],
+  baseURL:
+    typeof window === "undefined"
+      ? (process.env.SERVER_URL || "http://localhost:3000").replace(/\/$/, "") +
+        "/api/auth"
+      : window.location.origin + "/api/auth",
+  plugins: [inferAdditionalFields<typeof auth>()],
 });

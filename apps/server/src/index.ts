@@ -13,9 +13,8 @@ app.use(logger());
 app.use(
   "/*",
   cors({
-    origin: process.env.CLIENT_URL || "",
+    origin: (process.env.CLIENT_URL || "").replace(/\/$/, ""),
     allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization", "Cookie"],
     credentials: true,
   })
 );

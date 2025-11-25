@@ -30,14 +30,21 @@ export const auth = betterAuth<BetterAuthOptions>({
     },
   },
   advanced: {
+    cookies: {
+      sessionToken: {
+        name: "better-auth.session_token",
+        attributes: {
+          httpOnly: true,
+          sameSite: "lax",
+          path: "/",
+          secure: process.env.NODE_ENV === "production",
+        },
+      },
+    },
     database: {
       generateId: (_options: { model: string; size?: number }) => {
         return createId();
       },
-    },
-    defaultCookieAttributes: {
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      secure: process.env.NODE_ENV === "production",
     },
   },
   socialProviders: {

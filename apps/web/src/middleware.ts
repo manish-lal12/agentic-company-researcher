@@ -15,7 +15,9 @@ export function middleware(request: NextRequest) {
   const isPublicRoute = publicRoutes.includes(pathname);
 
   // Check for session cookie - better-auth uses 'better-auth.session_token'
-  const sessionToken = request.cookies.get("better-auth.session_token")?.value;
+  const sessionToken =
+    request.cookies.get("better-auth.session_token")?.value ||
+    request.cookies.get("__Secure-better-auth.session_token")?.value;
 
   // If accessing protected route without session, redirect to login
   if (isProtectedRoute && !sessionToken) {
