@@ -8,10 +8,6 @@ import type { BetterAuthOptions } from "better-auth/types";
 const serverUrl = process.env.BETTER_AUTH_URL || "http://localhost:3000";
 // Client URL is where users should be redirected after auth (frontend)
 const clientUrl = process.env.CLIENT_URL || "http://localhost:3001";
-const clientOrigins = [
-  process.env.CORS_ORIGIN || "http://localhost:3001",
-  clientUrl,
-];
 
 export const auth = betterAuth<BetterAuthOptions>({
   database: prismaAdapter(prisma, {
@@ -19,7 +15,7 @@ export const auth = betterAuth<BetterAuthOptions>({
   }),
   basePath: "/api/auth",
   baseURL: serverUrl,
-  trustedOrigins: clientOrigins,
+  trustedOrigins: [clientUrl],
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // update session every day

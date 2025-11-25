@@ -20,14 +20,17 @@ export const queryClient = new QueryClient({
 function getApiUrl() {
   // When runs on server, window is undefined:
   if (typeof window === "undefined") {
-    return process.env.TRPC_SERVER_URL ?? "http://localhost:3000/api/trpc";
+    return process.env.NEXT_PUBLIC_SERVER_URL
+      ? `${process.env.NEXT_PUBLIC_SERVER_URL}/api/trpc`
+      : "http://localhost:3000/api/trpc";
   }
 
   // When runs on browser:
   return (
     (window as any).__TRPC_SERVER_URL ??
-    process.env.NEXT_PUBLIC_TRPC_SERVER_URL ??
-    "http://localhost:3000/api/trpc"
+    (process.env.NEXT_PUBLIC_SERVER_URL
+      ? `${process.env.NEXT_PUBLIC_SERVER_URL}/api/trpc`
+      : "http://localhost:3000/api/trpc")
   );
 }
 
