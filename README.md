@@ -6,6 +6,8 @@
 
 > An intelligent, conversational AI platform for deep company research, strategic account planning, and automated business intelligence gathering.
 
+### 🚀 [**View Live Application**](https://your-deployment-url.vercel.app)
+
 ---
 
 ## 📋 Table of Contents
