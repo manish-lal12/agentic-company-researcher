@@ -31,9 +31,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased h-full overflow-hidden`}
       >
         <Providers>
-          <div className="grid grid-rows-[auto_1fr] h-full overflow-hidden">
+          <div className="grid grid-rows-[auto_1fr] h-full">
             <Header />
-            {children}
+            <div className="overflow-y-auto h-full">{children}</div>
           </div>
         </Providers>
       </body>
