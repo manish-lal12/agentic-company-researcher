@@ -45,36 +45,36 @@ export function EditablePlanSection({
 
   if (isEditing) {
     return (
-      <div className="bg-white rounded-lg border p-6 space-y-4">
+      <div className="bg-card rounded-lg border border-border p-6 space-y-4">
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-foreground">
             Title
           </label>
           <input
             type="text"
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
             disabled={isSaving}
           />
         </div>
 
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-foreground">
             Content
           </label>
           <textarea
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
             rows={10}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-ring font-mono text-sm"
             disabled={isSaving}
           />
-          <p className="text-xs text-gray-500">Markdown is supported</p>
+          <p className="text-xs text-muted-foreground">Markdown is supported</p>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded p-3 text-red-700 text-sm">
+          <div className="bg-destructive/10 border border-destructive/20 rounded p-3 text-destructive text-sm">
             {error}
           </div>
         )}
@@ -83,7 +83,7 @@ export function EditablePlanSection({
           <button
             onClick={handleCancel}
             disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 border border-input bg-background text-foreground rounded-lg hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
           >
             <X className="w-4 h-4" />
             Cancel
@@ -91,11 +91,11 @@ export function EditablePlanSection({
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
           >
             {isSaving ? (
               <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 Saving...
               </>
             ) : (
@@ -111,20 +111,20 @@ export function EditablePlanSection({
   }
 
   return (
-    <div className="bg-white rounded-lg border p-6 group hover:shadow-md transition-shadow">
+    <div className="bg-card rounded-lg border border-border p-6 group hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-4">
-        <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
+        <h3 className="text-xl font-semibold text-card-foreground">{title}</h3>
         <button
           onClick={() => setIsEditing(true)}
           disabled={isLoading}
-          className="opacity-0 group-hover:opacity-100 p-2 text-gray-500 hover:text-blue-600 transition-all"
+          className="opacity-0 group-hover:opacity-100 p-2 text-muted-foreground hover:text-primary transition-all"
           title="Edit section"
         >
           <Edit2 className="w-5 h-5" />
         </button>
       </div>
 
-      <div className="prose prose-sm max-w-none text-gray-700">
+      <div className="prose prose-sm max-w-none dark:prose-invert text-card-foreground">
         <ReactMarkdown>{content}</ReactMarkdown>
       </div>
     </div>

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
-import { ChevronDown, BookOpen, Plus, FolderOpen } from "lucide-react";
+import { ChevronDown, BookOpen, Plus, FolderOpen, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useParams, useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ResearchSession {
   id: string;
@@ -32,6 +33,7 @@ export function DynamicSidebar() {
   const { data: session } = authClient.useSession();
   const params = useParams();
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   const [researchSessions, setResearchSessions] = useState<ResearchSession[]>(
     []
@@ -40,6 +42,7 @@ export function DynamicSidebar() {
   const [loadingResearch, setLoadingResearch] = useState(true); // Start as true since we need to fetch
   const [loadingPlans, setLoadingPlans] = useState(true); // Start as true since we need to fetch
   const [generatingName, setGeneratingName] = useState<string | null>(null);
+  const [navigatingId, setNavigatingId] = useState<string | null>(null);
 
   const [openResearch, setOpenResearch] = useState(true);
   const [openPlans, setOpenPlans] = useState(true);
@@ -123,7 +126,11 @@ export function DynamicSidebar() {
         setGeneratingName(null);
       }
     }
-    router.push(`/dashboard/research/${s.id}`);
+
+    setNavigatingId(s.id);
+    startTransition(() => {
+      router.push(`/dashboard/research/${s.id}`);
+    });
   };
 
   const getSessionDisplayName = (s: ResearchSession): string => {
@@ -183,7 +190,11 @@ export function DynamicSidebar() {
             {/* Scrollable list */}
             <div className="max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent pr-1">
               {loadingResearch ? (
-                <p className="text-sm text-muted-foreground">Loading...</p>
+                <div className="space-y-2 py-1">
+                  <Skeleton className="h-6 w-full" />
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-6 w-5/6" />
+                </div>
               ) : researchSessions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No sessions yet</p>
               ) : (
@@ -192,9 +203,11 @@ export function DynamicSidebar() {
                     <button
                       key={s.id}
                       onClick={() => handleSessionClick(s)}
-                      disabled={generatingName === s.id}
-                      className="
-                        block 
+                      disabled={
+                        generatingName === s.id ||
+                        (navigatingId === s.id && isPending)
+                      }
+                      className={`
                         w-full
                         text-left
                         text-xs 
@@ -206,11 +219,22 @@ export function DynamicSidebar() {
                         rounded 
                         truncate
                         disabled:opacity-50
-                      "
+                        flex items-center justify-between
+                        ${
+                          navigatingId === s.id && isPending
+                            ? "bg-muted text-blue-600"
+                            : ""
+                        }
+                      `}
                     >
-                      {generatingName === s.id
-                        ? "Generating name..."
-                        : getSessionDisplayName(s)}
+                      <span className="truncate">
+                        {generatingName === s.id
+                          ? "Generating name..."
+                          : getSessionDisplayName(s)}
+                      </span>
+                      {navigatingId === s.id && isPending && (
+                        <Loader2 className="w-3 h-3 animate-spin ml-2 shrink-0" />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -257,9 +281,10 @@ export function DynamicSidebar() {
           <div className="pl-6 space-y-2">
             <div className="max-h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent pr-1">
               {loadingPlans ? (
-                <p className="text-sm text-muted-foreground">
-                  Loading plans...
-                </p>
+                <div className="space-y-2 py-1">
+                  <Skeleton className="h-6 w-full" />
+                  <Skeleton className="h-6 w-3/4" />
+                </div>
               ) : accountPlans.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No plans yet</p>
               ) : (

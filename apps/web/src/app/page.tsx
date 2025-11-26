@@ -66,7 +66,7 @@ export default function Home() {
                 <Button
                   size="lg"
                   onClick={() => router.push("/dashboard")}
-                  className="rounded-full px-8 h-12 text-base shadow-lg shadow-primary/20 transition-all hover:shadow-primary/30"
+                  className="rounded-full px-8 h-12 text-base shadow-lg shadow-primary/20 transition-all hover:shadow-primary/30 cursor-pointer"
                 >
                   Launch Console <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
@@ -75,14 +75,15 @@ export default function Home() {
                   <Button
                     size="lg"
                     onClick={() => router.push("/login")}
-                    className="rounded-full px-8 h-12 text-base shadow-lg shadow-primary/20 transition-all hover:shadow-primary/30"
+                    className="rounded-full px-8 h-12 text-base shadow-lg shadow-primary/20 transition-all hover:shadow-primary/30 cursor-pointer"
                   >
                     Start Researching
                   </Button>
                   <Button
                     size="lg"
                     variant="outline"
-                    className="rounded-full px-8 h-12 text-base border-border/60 hover:bg-muted/50"
+                    onClick={() => router.push("/dashboard")}
+                    className="rounded-full px-8 h-12 text-base border-border/60 hover:bg-muted/50 cursor-pointer"
                   >
                     View Demo
                   </Button>

@@ -109,7 +109,7 @@ export function MessageInput({
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about the company..."
           disabled={disabled || isTranscribing}
-          className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 text-gray-900 placeholder-gray-500"
+          className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 bg-background text-foreground placeholder:text-muted-foreground"
         />
 
         {mode === "voice" && (

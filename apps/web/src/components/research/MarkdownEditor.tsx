@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import dynamic from "next/dynamic";
+import { useTheme } from "next-themes";
 
 // Dynamically import MDEditor to avoid SSR issues
 const MDEditor = dynamic(
@@ -32,6 +33,7 @@ export function MarkdownEditor({
   const [content, setContent] = useState(initialContent);
   const [isSaving, setIsSaving] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
+  const { resolvedTheme } = useTheme();
 
   const handleSave = async () => {
     if (!onSave) return;
@@ -110,51 +112,56 @@ export function MarkdownEditor({
 
   const markdownComponents = {
     h1: (props: any) => (
-      <h1 className="text-2xl font-bold mt-6 mb-3 text-gray-900" {...props} />
+      <h1 className="text-2xl font-bold mt-6 mb-3 text-foreground" {...props} />
     ),
     h2: (props: any) => (
       <h2
-        className="text-xl font-semibold mt-5 mb-2 text-gray-800"
+        className="text-xl font-semibold mt-5 mb-2 text-foreground/90"
         {...props}
       />
     ),
     h3: (props: any) => (
       <h3
-        className="text-lg font-semibold mt-4 mb-2 text-gray-700"
+        className="text-lg font-semibold mt-4 mb-2 text-foreground/80"
         {...props}
       />
     ),
     p: (props: any) => (
-      <p className="mb-3 text-sm leading-relaxed text-gray-700" {...props} />
+      <p
+        className="mb-3 text-sm leading-relaxed text-foreground/80"
+        {...props}
+      />
     ),
     ul: (props: any) => (
       <ul
-        className="list-disc ml-6 mb-3 text-sm space-y-1 text-gray-700"
+        className="list-disc ml-6 mb-3 text-sm space-y-1 text-foreground/80"
         {...props}
       />
     ),
     ol: (props: any) => (
       <ol
-        className="list-decimal ml-6 mb-3 text-sm space-y-1 text-gray-700"
+        className="list-decimal ml-6 mb-3 text-sm space-y-1 text-foreground/80"
         {...props}
       />
     ),
-    li: (props: any) => <li className="text-sm text-gray-700" {...props} />,
+    li: (props: any) => (
+      <li className="text-sm text-foreground/80" {...props} />
+    ),
     blockquote: (props: any) => (
       <blockquote
-        className="border-l-4 border-blue-500 pl-4 italic text-sm text-gray-600 my-3"
+        className="border-l-4 border-primary pl-4 italic text-sm text-muted-foreground my-3"
         {...props}
       />
     ),
     code: ({ inline, ...props }: any) =>
       inline ? (
         <code
-          className="bg-gray-100 px-2 py-1 rounded text-xs font-mono text-gray-800"
+          className="bg-muted px-2 py-1 rounded text-xs font-mono text-foreground"
           {...props}
         />
       ) : (
         <code
-          className="block bg-gray-900 text-gray-100 p-3 rounded text-xs font-mono overflow-x-auto"
+          className="block bg-muted text-foreground p-3 rounded text-xs font-mono overflow-x-auto"
           {...props}
         />
       ),
@@ -166,14 +173,16 @@ export function MarkdownEditor({
     ),
     th: (props: any) => (
       <th
-        className="border bg-gray-200 p-2 font-semibold text-left text-gray-900"
+        className="border border-border bg-muted p-2 font-semibold text-left text-foreground"
         {...props}
       />
     ),
-    td: (props: any) => <td className="border p-2 text-gray-700" {...props} />,
+    td: (props: any) => (
+      <td className="border border-border p-2 text-foreground/80" {...props} />
+    ),
     a: (props: any) => (
       <a
-        className="text-blue-600 hover:underline break-all text-sm"
+        className="text-primary hover:underline break-all text-sm"
         target="_blank"
         rel="noopener noreferrer"
         {...props}
@@ -182,15 +191,17 @@ export function MarkdownEditor({
   };
 
   return (
-    <div className="h-full flex flex-col bg-white rounded-lg border overflow-hidden">
+    <div className="h-full flex flex-col bg-card rounded-lg border border-border overflow-hidden">
       {/* Header */}
-      <div className="border-b bg-gray-50 p-4 flex items-center justify-between sticky top-0 z-10">
+      <div className="border-b border-border bg-muted/50 p-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-2">
-          <FileText size={18} className="text-gray-600" />
-          <h2 className="font-semibold text-gray-800">
+          <FileText size={18} className="text-muted-foreground" />
+          <h2 className="font-semibold text-foreground">
             {planName ? `${planName}` : "Account Plan"}
             {companyName && (
-              <span className="text-gray-600 ml-2">— {companyName}</span>
+              <span className="text-muted-foreground ml-2">
+                — {companyName}
+              </span>
             )}
           </h2>
         </div>
@@ -200,7 +211,7 @@ export function MarkdownEditor({
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded transition disabled:opacity-50"
+              className="px-3 py-1.5 text-sm bg-primary text-primary-foreground hover:bg-primary/90 rounded transition disabled:opacity-50"
             >
               {isSaving ? "Saving..." : "Save"}
             </button>
@@ -208,26 +219,26 @@ export function MarkdownEditor({
 
           <button
             onClick={handleCopy}
-            className="p-1.5 hover:bg-gray-200 rounded transition"
+            className="p-1.5 hover:bg-muted rounded transition"
             title="Copy content"
           >
-            <Copy size={16} className="text-gray-600" />
+            <Copy size={16} className="text-muted-foreground" />
           </button>
 
           <button
             onClick={handleDownloadMarkdown}
-            className="p-1.5 hover:bg-gray-200 rounded transition"
+            className="p-1.5 hover:bg-muted rounded transition"
             title="Download Markdown"
           >
-            <FileText size={16} className="text-gray-600" />
+            <FileText size={16} className="text-muted-foreground" />
           </button>
 
           <button
             onClick={handleExportPDF}
-            className="p-1.5 hover:bg-gray-200 rounded transition"
+            className="p-1.5 hover:bg-muted rounded transition"
             title="Export PDF"
           >
-            <Download size={16} className="text-gray-600" />
+            <Download size={16} className="text-muted-foreground" />
           </button>
         </div>
       </div>
@@ -237,18 +248,23 @@ export function MarkdownEditor({
         {readOnly ? (
           <div
             ref={previewRef}
-            className="h-full overflow-y-auto p-4 prose prose-sm max-w-none"
+            className="h-full overflow-y-auto p-4 prose prose-sm max-w-none dark:prose-invert"
           >
             {content ? (
               <ReactMarkdown components={markdownComponents}>
                 {content}
               </ReactMarkdown>
             ) : (
-              <p className="text-gray-400 italic">No content available</p>
+              <p className="text-muted-foreground italic">
+                No content available
+              </p>
             )}
           </div>
         ) : (
-          <div data-color-mode="light" className="h-full">
+          <div
+            data-color-mode={resolvedTheme === "dark" ? "dark" : "light"}
+            className="h-full"
+          >
             <MDEditor
               value={content}
               onChange={(val) => setContent(val || "")}

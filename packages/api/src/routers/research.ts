@@ -1052,9 +1052,14 @@ Rules:
       }
 
       // Build update prompt - CHANGED to only update specific sections
+      const sectionTitles = plan.sections.map((s: any) => s.title).join(", ");
+
       const updatePrompt = `You are an expert account planner. Based on the user's request, update ONLY the relevant sections of an account plan for ${
         plan.company?.name || "the company"
       }.
+
+## Available Sections
+${sectionTitles}
 
 ## Current Account Plan
 ${contentToUpdate}
@@ -1074,21 +1079,22 @@ ${findingsContext}`
 ${input.prompt}
 
 ## CRITICAL INSTRUCTIONS - Selective Update
-- Identify which specific sections need to be updated based on the user's request
-- Return ONLY the sections that need updating (not the entire plan)
-- Keep each section's structure with ## header
-- Make updates specific and actionable
-- DO NOT return sections that don't need updating
+1. Analyze the User Request to identify which specific sections need modification.
+2. Return ONLY those specific sections.
+3. DO NOT return the entire plan.
+4. DO NOT return sections that do not need changes.
+5. If the user request is general (e.g., "make it better"), pick the 1-2 most relevant sections to improve, do not rewrite everything.
+6. Use the exact existing section titles (e.g. "## Executive Summary") to update them. Use a new title only if the user explicitly asks for a new section.
+7. IMPORTANT: Any section you return will COMPLETELY REPLACE the existing section. If you want to keep parts of the old text, you must include them in your output.
+8. If a section is not in your output, it will remain unchanged (SAFE).
 
 ## Output Format
-Return ONLY the updated sections in this format:
-## Section Title
-Updated content here...
+## [Exact Section Title]
+[New content for this section only]
 
-## Another Section Title (if needed)
-More updated content...
-
-Only include sections that need changes based on the user's request.`;
+## [Another Section Title]
+[New content for this section only]
+`;
 
       try {
         const response = await chat({
@@ -1127,6 +1133,13 @@ Only include sections that need changes based on the user's request.`;
 
         // Update ONLY the sections that were returned by LLM
         // Keep existing sections unchanged
+
+        // Track max order to avoid unique constraint violations when adding multiple new sections
+        let currentMaxOrder =
+          plan.sections.length > 0
+            ? Math.max(...plan.sections.map((s: any) => s.order || 0))
+            : -1;
+
         for (const updatedSection of updatedSections) {
           // Find existing section by title
           const existingSection = plan.sections.find(
@@ -1146,17 +1159,14 @@ Only include sections that need changes based on the user's request.`;
             });
           } else {
             // Create new section if it doesn't exist
-            const maxOrder =
-              plan.sections.length > 0
-                ? Math.max(...plan.sections.map((s: any) => s.order || 0))
-                : -1;
+            currentMaxOrder++;
 
             await prisma.planSection.create({
               data: {
                 planId: input.planId,
                 title: updatedSection.title,
                 content: updatedSection.content,
-                order: maxOrder + 1,
+                order: currentMaxOrder,
                 editable: true,
               },
             });
@@ -1169,16 +1179,28 @@ Only include sections that need changes based on the user's request.`;
           include: { sections: { orderBy: { order: "asc" } } },
         });
 
+        // Reconstruct full markdown content from all sections
+        const fullPlanContent = updatedPlan?.sections
+          .map((s: any) => `## ${s.title}\n${s.content}`)
+          .join("\n\n");
+
         return {
           success: true,
           sections: updatedPlan?.sections || [],
-          updatedContent,
+          updatedContent: fullPlanContent || "",
         };
       } catch (error) {
         console.error("Failed to update plan sections:", error);
+        if (error instanceof Error) {
+          console.error("Error stack:", error.stack);
+        }
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to update plan sections",
+          message:
+            error instanceof Error
+              ? `Failed to update plan sections: ${error.message}`
+              : "Failed to update plan sections",
+          cause: error,
         });
       }
     }),

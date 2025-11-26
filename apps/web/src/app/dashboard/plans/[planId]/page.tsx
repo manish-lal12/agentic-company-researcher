@@ -18,8 +18,15 @@ const styles = `
       background-color: transparent;
     }
   }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
   .content-updating {
     animation: contentUpdate 2s ease-out;
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
   }
 `;
 
@@ -99,20 +106,41 @@ export default function PlanDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-4 h-full">
-        <Skeleton className="h-full bg-gray-200 rounded-lg" />
-        <Skeleton className="h-full bg-gray-200 rounded-lg" />
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-4 h-full p-4">
+        <div className="flex flex-col gap-4 h-full">
+          <div className="flex items-center justify-between mb-2">
+            <Skeleton className="h-8 w-1/3 rounded-md" />
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-20 rounded-md" />
+              <Skeleton className="h-8 w-20 rounded-md" />
+            </div>
+          </div>
+          <div className="flex-1 bg-card border border-border rounded-lg p-6 space-y-4">
+            <Skeleton className="h-10 w-3/4 rounded-md" />
+            <Skeleton className="h-4 w-full rounded-md" />
+            <Skeleton className="h-4 w-full rounded-md" />
+            <Skeleton className="h-4 w-2/3 rounded-md" />
+            <div className="h-8" />
+            <Skeleton className="h-10 w-1/2 rounded-md" />
+            <Skeleton className="h-4 w-full rounded-md" />
+            <Skeleton className="h-4 w-full rounded-md" />
+            <Skeleton className="h-4 w-full rounded-md" />
+          </div>
+        </div>
+        <div className="h-full">
+          <Skeleton className="h-full w-full rounded-lg" />
+        </div>
       </div>
     );
   }
 
   if (error || !plan) {
     return (
-      <div className="bg-red-50 rounded-lg p-6 border border-red-200">
-        <p className="text-red-800">{error || "Plan not found"}</p>
+      <div className="bg-destructive/10 rounded-lg p-6 border border-destructive/20 animate-fade-in">
+        <p className="text-destructive">{error || "Plan not found"}</p>
         <button
           onClick={() => router.back()}
-          className="text-red-600 hover:underline mt-2"
+          className="text-destructive hover:underline mt-2"
         >
           Back
         </button>
@@ -123,7 +151,7 @@ export default function PlanDetailPage() {
   return (
     <>
       <style>{styles}</style>
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-4 h-full">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_350px] gap-4 h-full animate-fade-in">
         {/* Markdown Editor */}
         <div
           className={`rounded-lg overflow-hidden transition-colors ${
