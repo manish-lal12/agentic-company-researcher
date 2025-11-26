@@ -6,7 +6,12 @@
 
 > An intelligent, conversational AI platform for deep company research, strategic account planning, and automated business intelligence gathering.
 
-### 🚀 [**View Live Application**](https://your-deployment-url.vercel.app)
+## 🚀 Access the Live Platform
+
+Interact with Scout’s agentic research capabilities in real time.
+
+**Live URL:**  
+🔗 **[https://agentic-company-researcher-web-f8er.vercel.app](https://agentic-company-researcher-web-f8er.vercel.app)**
 
 ---
 
@@ -128,14 +133,22 @@ This project is built as a **Turbo Monorepo**, ensuring modularity, shared confi
 
 ### 🧠 Intelligence & Personas
 
-- **System Prompts**: We use specialized prompts (`packages/api/src/constants/systemPrompts.ts`) to handle different user types.
-  - _Research Assistant_: Helpful and professional.
-  - _Efficient User_: Direct, bulleted data.
-  - _Confused User_: Educational and guiding.
-  - _Chatty Partner_: Conversational but goal-oriented.
-  - _Edge Case Validator_: Graceful error handling.
-- **Dual-State Architecture**: We separate **Conversation State** (chat history) from **Document State** (structured report). The AI distinguishes between "chatting" and "fact-finding" to keep the report clean.
-- **Adaptive Creativity**: We use low temperature for facts (revenue) and high temperature for strategy (SWOT analysis).
+- **System Prompts**: This project uses specialized prompts  
+  (`packages/api/src/constants/systemPrompts.ts`) to handle different user types.
+
+  - _Research Assistant_: Helpful and professional
+  - _Efficient User_: Direct and data-focused
+  - _Confused User_: Educational and guiding
+  - _Chatty Partner_: Conversational but goal-oriented
+  - _Edge Case Validator_: Graceful error handling
+
+- **Dual-State Architecture**: The system separates **Conversation State** (chat history)
+  from **Document State** (structured reports). The AI distinguishes between
+  _chatting_ and _fact-finding_ to keep generated documents clean and focused.
+
+- **Adaptive Creativity**: Dynamic temperature control is applied:
+  - Low temperature for factual outputs (e.g., revenue)
+  - Higher temperature for strategic or creative work (e.g., SWOT analysis)
 
 ### 🤖 Model Agnostic LLM Layer
 
