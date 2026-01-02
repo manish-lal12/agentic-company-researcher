@@ -1,6 +1,21 @@
 import { chat } from "../llm";
 import type { Message } from "../llm";
 
+// ========== DEBUG LOGGING ==========
+const DEBUG_MODEL_DATASOURCE = true;
+
+function logModelQuery(stage: string, data: any) {
+  if (!DEBUG_MODEL_DATASOURCE) return;
+  const emoji =
+    data.provider === "grok" ? "🤖" : data.provider === "gemini" ? "💎" : "🔮";
+  console.log("\n" + emoji.repeat(30));
+  console.log(`${emoji} [MODEL: ${data.model || "unknown"}] ${stage}`);
+  console.log(emoji.repeat(30));
+  console.log(JSON.stringify(data, null, 2));
+  console.log(emoji.repeat(30) + "\n");
+}
+// ====================================
+
 export interface DataSourceResult {
   source: string;
   data: any;
@@ -51,6 +66,16 @@ export class ModelDataSource {
   ): Promise<DataSourceResult> {
     const startTime = Date.now();
 
+    logModelQuery("QUERY STARTED", {
+      model: this.config.model,
+      provider: this.config.provider,
+      modelName: this.config.name,
+      question: question.substring(0, 100) + "...",
+      historyLength: conversationHistory.length,
+      strengths: this.config.strengths,
+      weaknesses: this.config.weaknesses,
+    });
+
     try {
       const messages: Message[] = [
         {
@@ -78,7 +103,7 @@ export class ModelDataSource {
         (result.usage?.promptTokens || 0) * this.config.costPerToken.input +
         (result.usage?.completionTokens || 0) * this.config.costPerToken.output;
 
-      return {
+      const queryResult = {
         source: `model-${this.config.name}`,
         data: {
           response: result.text,
@@ -99,6 +124,19 @@ export class ModelDataSource {
           cost,
         },
       };
+
+      logModelQuery("QUERY COMPLETED", {
+        model: this.config.model,
+        provider: this.config.provider,
+        executionTime: `${executionTime}ms`,
+        responseLength: result.text.length,
+        tokenUsage: result.usage,
+        estimatedCost: `$${cost.toFixed(6)}`,
+        confidence: queryResult.confidence,
+        responsePreview: result.text.substring(0, 200) + "...",
+      });
+
+      return queryResult;
     } catch (error) {
       console.error(`Model ${this.config.name} failed:`, error);
       return {

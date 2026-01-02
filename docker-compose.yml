@@ -1,0 +1,149 @@
+version: "3.8"
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: scout-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-scout}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-scout_password}
+      POSTGRES_DB: ${DB_NAME:-scout_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-scout}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - scout-network
+    restart: unless-stopped
+
+  # Backend Server (Hono + tRPC)
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: scout-server
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgresql://${DB_USER:-scout}:${DB_PASSWORD:-scout_password}@postgres:5432/${DB_NAME:-scout_db}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost}
+      SERVER_URL: ${SERVER_URL:-http://localhost:3000}
+      NEXT_PUBLIC_SERVER_URL: ${NEXT_PUBLIC_SERVER_URL:-http://localhost:3000}
+
+      # Google OAuth
+      AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID}
+      AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+
+      # LLM API Keys
+      GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY}
+      XAI_API_KEY: ${XAI_API_KEY}
+
+      # LLM Configuration
+      AGENT_TEMPERATURE: ${AGENT_TEMPERATURE:-0.6}
+      AGENT_TOP_P: ${AGENT_TOP_P:-0.9}
+      AGENT_MAX_TOKENS_COMPREHENSIVE: ${AGENT_MAX_TOKENS_COMPREHENSIVE:-3500}
+      AGENT_AUTO_EXTRACT_POINTS: ${AGENT_AUTO_EXTRACT_POINTS:-true}
+      AGENT_MAX_RESEARCH_POINTS: ${AGENT_MAX_RESEARCH_POINTS:-5}
+
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - scout-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend Application (Next.js)
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: scout-web
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      NEXT_PUBLIC_SERVER_URL: ${NEXT_PUBLIC_SERVER_URL:-http://localhost:3000}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost}
+
+    ports:
+      - "3001:3001"
+    depends_on:
+      - server
+    networks:
+      - scout-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3001",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: scout-nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_cache:/var/cache/nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - web
+      - server
+    networks:
+      - scout-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:80",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  scout-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  nginx_cache:

@@ -37,7 +37,12 @@ app.all("/api/trpc/*", async (c) => {
 });
 
 app.get("/", (c) => {
-  return c.text("OK");
+  return c.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Health check endpoint
+app.get("/health", (c) => {
+  return c.json({ status: "healthy", service: "api" });
 });
 
 // Export for Vercel serverless
@@ -45,15 +50,33 @@ export default app;
 
 // Only run local server in development
 if (process.env.NODE_ENV !== "production") {
-  import("@hono/node-server").then(({ serve }) => {
-    serve(
-      {
-        fetch: app.fetch,
-        port: 3000,
-      },
-      (info) => {
-        console.log(`Server is running on http://localhost:${info.port}`);
-      }
-    );
-  });
+  const PORT = parseInt(process.env.PORT || "3000", 10);
+
+  import("@hono/node-server")
+    .then(({ serve }) => {
+      serve(
+        {
+          fetch: app.fetch,
+          port: PORT,
+        },
+        (info) => {
+          console.log(
+            `\n✅ API Server running on http://localhost:${info.port}`
+          );
+          console.log(
+            `   Environment: ${process.env.NODE_ENV || "development"}`
+          );
+          console.log(
+            `   Client URL: ${
+              process.env.CLIENT_URL || "http://localhost:3001"
+            }`
+          );
+          console.log(`\n`);
+        }
+      );
+    })
+    .catch((err) => {
+      console.error("Failed to start server:", err);
+      process.exit(1);
+    });
 }

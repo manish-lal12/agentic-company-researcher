@@ -238,7 +238,17 @@ export function ChatInterface({
       }
 
       // Add assistant message BEFORE sync to show response immediately
-      addMessage("assistant", response.assistantMessage?.content || "");
+      const assistantContent =
+        response.assistantMessage?.content || response.assistantMessage || "";
+
+      if (!assistantContent) {
+        console.warn("⚠️ Assistant response is empty!", {
+          assistantMessage: response.assistantMessage,
+          responseKeys: Object.keys(response || {}),
+        });
+      }
+
+      addMessage("assistant", assistantContent);
 
       // Sync structured data to plan sections (single call, use result directly)
       try {

@@ -1,5 +1,18 @@
 import { chat } from "../../services/llm";
 
+// ========== DEBUG LOGGING ==========
+const DEBUG_MODEL_SELECTOR = true;
+
+function logSelector(stage: string, data: any) {
+  if (!DEBUG_MODEL_SELECTOR) return;
+  console.log("\n" + "=".repeat(60));
+  console.log(`🎯 [MODEL SELECTOR] ${stage}`);
+  console.log("=".repeat(60));
+  console.log(JSON.stringify(data, null, 2));
+  console.log("=".repeat(60) + "\n");
+}
+// ====================================
+
 export type QueryIntent =
   | "analytical"
   | "creative"
@@ -19,23 +32,30 @@ export interface ModelSelectionStrategy {
 
 export class ModelSelector {
   async analyzeIntent(question: string): Promise<QueryIntent> {
+    logSelector("ANALYZING INTENT", {
+      question:
+        question.substring(0, 100) + (question.length > 100 ? "..." : ""),
+      questionLength: question.length,
+      timestamp: new Date().toISOString(),
+    });
+
     try {
       const result = await chat({
         provider: "gemini",
-        model: "gemini-2.0-flash",
+        model: process.env.LLM_MODEL || "gemini-2.5-flash-lite",
         messages: [
           {
             role: "system",
             content: `Classify the user's query intent into ONE of these categories:
-- analytical: Requires deep reasoning, logic, step-by-step thinking
-- creative: Asks for novel ideas, brainstorming, creative solutions
-- factual: Asking for verifiable facts, data, definitions
-- complex: Multi-step reasoning, synthesis of multiple concepts
-- comparison: Comparing options, trade-offs, alternatives
-- synthesis: Combining multiple perspectives into unified view
-- general: General knowledge, small talk, or ambiguous intent
+              - analytical: Requires deep reasoning, logic, step-by-step thinking
+              - creative: Asks for novel ideas, brainstorming, creative solutions
+              - factual: Asking for verifiable facts, data, definitions
+              - complex: Multi-step reasoning, synthesis of multiple concepts
+              - comparison: Comparing options, trade-offs, alternatives
+              - synthesis: Combining multiple perspectives into unified view
+              - general: General knowledge, small talk, or ambiguous intent
 
-Respond with ONLY the category name, nothing else.`,
+              Respond with ONLY the category name, nothing else.`,
           },
           {
             role: "user",
@@ -47,6 +67,21 @@ Respond with ONLY the category name, nothing else.`,
       });
 
       const intent = result.text.toLowerCase().trim() as QueryIntent;
+
+      logSelector("INTENT CLASSIFIED", {
+        detectedIntent: intent,
+        rawResponse: result.text,
+        possibleIntents: [
+          "analytical",
+          "creative",
+          "factual",
+          "complex",
+          "comparison",
+          "synthesis",
+          "general",
+        ],
+      });
+
       return intent;
     } catch (error) {
       console.error("Intent analysis failed:", error);
@@ -65,28 +100,28 @@ Respond with ONLY the category name, nothing else.`,
       analytical: {
         speed: {
           intent: "analytical",
-          models: ["grok-4.1-fast"],
+          models: ["grok-4-1-fast"],
           approach: "single",
           reasoning: "Grok excels at reasoning, fast execution",
           priority: "speed",
         },
         accuracy: {
           intent: "analytical",
-          models: ["grok-4.1-fast", "gemini-2.0-flash"],
+          models: ["grok-4-1-fast", "gemini-2.0-flash"],
           approach: "parallel",
           reasoning: "Compare reasoning from both models for robustness",
           priority: "accuracy",
         },
         cost: {
           intent: "analytical",
-          models: ["grok-4.1-fast"],
+          models: ["grok-4-1-fast"],
           approach: "single",
           reasoning: "Grok is faster and lower cost",
           priority: "cost",
         },
         balanced: {
           intent: "analytical",
-          models: ["grok-4.1-fast"],
+          models: ["grok-4-1-fast"],
           approach: "single",
           reasoning: "Grok handles reasoning well, good cost-performance",
           priority: "balanced",
@@ -103,7 +138,7 @@ Respond with ONLY the category name, nothing else.`,
         },
         accuracy: {
           intent: "factual",
-          models: ["gemini-2.0-flash", "grok-4.1-fast"],
+          models: ["gemini-2.0-flash", "grok-4-1-fast"],
           approach: "parallel",
           reasoning: "Parallel queries to verify facts across models",
           priority: "accuracy",
@@ -127,28 +162,28 @@ Respond with ONLY the category name, nothing else.`,
       complex: {
         speed: {
           intent: "complex",
-          models: ["grok-4.1-fast"],
+          models: ["grok-4-1-fast"],
           approach: "single",
           reasoning: "Grok good for multi-step reasoning",
           priority: "speed",
         },
         accuracy: {
           intent: "complex",
-          models: ["grok-4.1-fast", "gemini-2.0-flash"],
+          models: ["grok-4-1-fast", "gemini-2.0-flash"],
           approach: "parallel",
           reasoning: "Both models verify complex reasoning",
           priority: "accuracy",
         },
         cost: {
           intent: "complex",
-          models: ["grok-4.1-fast"],
+          models: ["grok-4-1-fast"],
           approach: "single",
           reasoning: "Grok fast and reasonable cost",
           priority: "cost",
         },
         balanced: {
           intent: "complex",
-          models: ["grok-4.1-fast"],
+          models: ["grok-4-1-fast"],
           approach: "single",
           reasoning: "Grok excels at complex multi-step reasoning",
           priority: "balanced",
@@ -165,7 +200,7 @@ Respond with ONLY the category name, nothing else.`,
         },
         accuracy: {
           intent: "creative",
-          models: ["gemini-2.0-flash", "grok-4.1-fast"],
+          models: ["gemini-2.0-flash", "grok-4-1-fast"],
           approach: "ensemble",
           reasoning: "Blend creative outputs from both models",
           priority: "accuracy",
@@ -189,28 +224,28 @@ Respond with ONLY the category name, nothing else.`,
       comparison: {
         speed: {
           intent: "comparison",
-          models: ["grok-4.1-fast"],
+          models: ["grok-4-1-fast"],
           approach: "single",
           reasoning: "Single model can handle comparisons quickly",
           priority: "speed",
         },
         accuracy: {
           intent: "comparison",
-          models: ["grok-4.1-fast", "gemini-2.0-flash"],
+          models: ["grok-4-1-fast", "gemini-2.0-flash"],
           approach: "parallel",
           reasoning: "Compare different model perspectives on comparison",
           priority: "accuracy",
         },
         cost: {
           intent: "comparison",
-          models: ["grok-4.1-fast"],
+          models: ["grok-4-1-fast"],
           approach: "single",
           reasoning: "Grok handles comparisons efficiently",
           priority: "cost",
         },
         balanced: {
           intent: "comparison",
-          models: ["grok-4.1-fast"],
+          models: ["grok-4-1-fast"],
           approach: "single",
           reasoning: "Grok good at analytical comparisons",
           priority: "balanced",
@@ -220,28 +255,28 @@ Respond with ONLY the category name, nothing else.`,
       synthesis: {
         speed: {
           intent: "synthesis",
-          models: ["grok-4.1-fast"],
+          models: ["grok-4-1-fast"],
           approach: "single",
           reasoning: "Grok fast at synthesis",
           priority: "speed",
         },
         accuracy: {
           intent: "synthesis",
-          models: ["grok-4.1-fast", "gemini-2.0-flash"],
+          models: ["grok-4-1-fast", "gemini-2.0-flash"],
           approach: "parallel",
           reasoning: "Synthesize from multiple model perspectives",
           priority: "accuracy",
         },
         cost: {
           intent: "synthesis",
-          models: ["grok-4.1-fast"],
+          models: ["grok-4-1-fast"],
           approach: "single",
           reasoning: "Grok cost-effective",
           priority: "cost",
         },
         balanced: {
           intent: "synthesis",
-          models: ["grok-4.1-fast"],
+          models: ["grok-4-1-fast"],
           approach: "single",
           reasoning: "Grok good synthesis capabilities",
           priority: "balanced",
@@ -258,7 +293,7 @@ Respond with ONLY the category name, nothing else.`,
         },
         accuracy: {
           intent: "general",
-          models: ["gemini-2.0-flash", "grok-4.1-fast"],
+          models: ["gemini-2.0-flash", "grok-4-1-fast"],
           approach: "sequential",
           reasoning: "First use Gemini, fallback to Grok if needed",
           priority: "accuracy",
@@ -280,7 +315,7 @@ Respond with ONLY the category name, nothing else.`,
       },
     };
 
-    return (
+    const selectedStrategy =
       strategies[intent]?.[priority] ||
       strategies.general?.balanced ||
       ({
@@ -289,7 +324,27 @@ Respond with ONLY the category name, nothing else.`,
         approach: "single",
         reasoning: "Default fallback strategy",
         priority: "balanced",
-      } as ModelSelectionStrategy)
-    );
+      } as ModelSelectionStrategy);
+
+    logSelector("STRATEGY SELECTED", {
+      inputIntent: intent,
+      inputPriority: priority,
+      selectedStrategy: {
+        approach: selectedStrategy.approach,
+        models: selectedStrategy.models,
+        reasoning: selectedStrategy.reasoning,
+      },
+      willUseModels: selectedStrategy.models.join(" + "),
+      executionMode:
+        selectedStrategy.approach === "parallel"
+          ? "⚡ PARALLEL (both models simultaneously)"
+          : selectedStrategy.approach === "sequential"
+          ? "🔄 SEQUENTIAL (try first, fallback if needed)"
+          : selectedStrategy.approach === "ensemble"
+          ? "🎭 ENSEMBLE (blend both responses)"
+          : "🎯 SINGLE (one model only)",
+    });
+
+    return selectedStrategy;
   }
 }

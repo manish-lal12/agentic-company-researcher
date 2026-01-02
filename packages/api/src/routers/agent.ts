@@ -266,6 +266,19 @@ function extractFindings(content: string): Array<{
   return findings;
 }
 
+// ========== DEBUG LOGGING ==========
+const DEBUG_AGENT = true;
+
+function logAgent(stage: string, data: any) {
+  if (!DEBUG_AGENT) return;
+  console.log("\n" + "🚀".repeat(30));
+  console.log(`🚀 [AGENT ORCHESTRATOR] ${stage}`);
+  console.log("🚀".repeat(30));
+  console.log(JSON.stringify(data, null, 2));
+  console.log("🚀".repeat(30) + "\n");
+}
+// ====================================
+
 // Initialize multi-model orchestration services
 const modelSelector = new ModelSelector();
 const responseSynthesizer = new ResponseSynthesizer();
@@ -274,9 +287,9 @@ const responseSynthesizer = new ResponseSynthesizer();
 const grokModel = new ModelDataSource({
   name: "grok",
   provider: "grok",
-  model: "grok-4.1-fast",
+  model: "grok-4-1-fast",
   priority: 8,
-  costPerToken: { input: 0.000005, output: 0.000015 },
+  costPerToken: { input: 0.0002, output: 0.0005 },
   strengths: [
     "Reasoning",
     "Logic problems",
@@ -289,7 +302,7 @@ const grokModel = new ModelDataSource({
 const geminiModel = new ModelDataSource({
   name: "gemini-flash",
   provider: "gemini",
-  model: "gemini-2.0-flash",
+  model: process.env.LLM_MODEL || "gemini-2.5-flash-lite",
   priority: 9,
   costPerToken: { input: 0.000001, output: 0.000004 },
   strengths: [
@@ -365,40 +378,125 @@ export const agentRouter = router({
         take: -10, // Last 10 messages for context
       });
 
-      const priority = input.priority || "balanced";
+      // 🔧 TESTING: Changed from "balanced" to "accuracy" to see both models in action
+      // Change back to "balanced" for production
+      const priority = input.priority || "accuracy";
       let assistantResponse: string = "";
       let modelSelectionMetadata: any = {};
 
+      logAgent("REQUEST RECEIVED", {
+        sessionId: input.sessionId,
+        question:
+          input.question.substring(0, 100) +
+          (input.question.length > 100 ? "..." : ""),
+        priority: priority,
+        conversationHistoryLength: conversationHistory.length,
+        timestamp: new Date().toISOString(),
+      });
+
       try {
         // Step 1: Analyze query intent using ModelSelector
+        logAgent("STEP 1: INTENT ANALYSIS STARTING", {
+          step: "1/5",
+          action: "Classifying user query intent",
+        });
         const intent = await modelSelector.analyzeIntent(input.question);
         modelSelectionMetadata.intent = intent;
 
+        logAgent("STEP 1: INTENT ANALYSIS COMPLETE", {
+          detectedIntent: intent,
+          intentMeaning:
+            {
+              analytical: "Deep reasoning required",
+              creative: "Novel ideas/brainstorming",
+              factual: "Verifiable facts needed",
+              complex: "Multi-step reasoning",
+              comparison: "Comparing options",
+              synthesis: "Combining perspectives",
+              general: "General knowledge",
+            }[intent] || "Unknown",
+        });
+
         // Step 2: Select strategy based on intent and priority
+        logAgent("STEP 2: STRATEGY SELECTION STARTING", {
+          step: "2/5",
+          action: "Selecting model execution strategy",
+          inputs: { intent, priority },
+        });
         const strategy = modelSelector.selectStrategy(intent, priority);
         modelSelectionMetadata.strategy = strategy;
+
+        logAgent("STEP 2: STRATEGY SELECTION COMPLETE", {
+          selectedStrategy: strategy.approach,
+          models: strategy.models,
+          reasoning: strategy.reasoning,
+        });
 
         // Step 3: Execute models based on selected strategy
         let responses: any[] = [];
 
+        logAgent("STEP 3: MODEL EXECUTION STARTING", {
+          step: "3/5",
+          approach: strategy.approach,
+          modelsToExecute: strategy.models,
+        });
+
         if (strategy.approach === "single") {
           // Execute single model
           const model = strategy.models[0] === "grok" ? grokModel : geminiModel;
+          logAgent("SINGLE MODEL EXECUTION", {
+            selectedModel: strategy.models[0],
+            modelDetails: {
+              name: model.getName(),
+              priority: model.getPriority(),
+              costPerToken: model.getCostPerToken(),
+            },
+          });
           const result = await model.query(
             input.question,
             PROMPTS.RESEARCH_ASSISTANT,
             conversationHistory as any
           );
+
+          if (
+            !result.data?.response ||
+            result.data.response.trim().length === 0
+          ) {
+            logAgent("SINGLE MODEL FAILED", {
+              model: strategy.models[0],
+              error: result.error || "Empty response",
+              confidence: result.confidence,
+            });
+            throw new Error(
+              `Model ${strategy.models[0]} returned empty response: ${
+                result.error || "No error details"
+              }`
+            );
+          }
+
           responses.push({
             model: strategy.models[0],
-            response: result.data?.response,
+            response: result.data.response,
             confidence: result.confidence,
             executionTime: result.data?.executionTime,
             tokenUsage: result.data?.tokenUsage,
+            error: result.error,
           });
-          assistantResponse = result.data?.response || "";
+          assistantResponse = result.data.response;
+
+          logAgent("SINGLE MODEL COMPLETE", {
+            model: strategy.models[0],
+            responseLength: assistantResponse.length,
+            confidence: result.confidence,
+            executionTime: result.data?.executionTime,
+          });
         } else if (strategy.approach === "parallel") {
           // Execute both models in parallel
+          logAgent("PARALLEL EXECUTION STARTING", {
+            models: ["grok", "gemini-flash"],
+            note: "Both models executing simultaneously",
+          });
+
           const results = await Promise.all([
             grokModel.query(
               input.question,
@@ -412,84 +510,204 @@ export const agentRouter = router({
             ),
           ]);
 
+          logAgent("PARALLEL EXECUTION COMPLETE", {
+            grokResult: {
+              responseLength: results[0].data?.response?.length || 0,
+              confidence: results[0].confidence,
+              executionTime: results[0].data?.executionTime,
+            },
+            geminiResult: {
+              responseLength: results[1].data?.response?.length || 0,
+              confidence: results[1].confidence,
+              executionTime: results[1].data?.executionTime,
+            },
+          });
+
           responses = [
             {
               model: "grok",
-              response: results[0].data?.response,
+              response: results[0].data?.response || "",
               confidence: results[0].confidence,
               executionTime: results[0].data?.executionTime,
               tokenUsage: results[0].data?.tokenUsage,
+              error: results[0].error,
             },
             {
               model: "gemini-flash",
-              response: results[1].data?.response,
+              response: results[1].data?.response || "",
               confidence: results[1].confidence,
               executionTime: results[1].data?.executionTime,
               tokenUsage: results[1].data?.tokenUsage,
+              error: results[1].error,
             },
           ];
 
           // Step 4: Compare responses
+          logAgent("STEP 4: RESPONSE COMPARISON", {
+            step: "4/5",
+            action: "Comparing responses from both models",
+            validResponses: [
+              results[0].data?.response ? true : false,
+              results[1].data?.response ? true : false,
+            ],
+          });
+
+          // Filter out empty responses for comparison
+          const validResponsesForComparison = [
+            results[0].data?.response || "",
+            results[1].data?.response || "",
+          ].filter((r) => r.trim().length > 0);
+
+          if (validResponsesForComparison.length === 0) {
+            throw new Error(
+              "Both models in parallel execution returned empty responses"
+            );
+          }
+
           const comparison = await responseSynthesizer.compareResponses(
             input.question,
-            [results[0].data?.response || "", results[1].data?.response || ""],
+            validResponsesForComparison,
             PROMPTS.RESEARCH_ASSISTANT
           );
           modelSelectionMetadata.comparison = comparison;
 
           // Step 5: Synthesize responses based on blend preference
+          logAgent("STEP 5: RESPONSE SYNTHESIS", {
+            step: "5/5",
+            action: "Blending responses",
+          });
           const blendApproach =
             strategy.reasoning.includes("diversity") ||
             strategy.reasoning.includes("diverse")
               ? "consensus"
               : "blend";
-          assistantResponse = await responseSynthesizer.blendResponses(
-            input.question,
-            [results[0].data?.response || "", results[1].data?.response || ""],
-            PROMPTS.RESEARCH_ASSISTANT,
-            blendApproach
-          );
+
+          logAgent("BLEND APPROACH SELECTED", {
+            approach: blendApproach,
+            reasoning: strategy.reasoning,
+          });
+
+          if (validResponsesForComparison.length === 1) {
+            assistantResponse = validResponsesForComparison[0];
+          } else {
+            assistantResponse = await responseSynthesizer.blendResponses(
+              input.question,
+              validResponsesForComparison,
+              PROMPTS.RESEARCH_ASSISTANT,
+              blendApproach
+            );
+          }
+
+          logAgent("SYNTHESIS COMPLETE", {
+            finalResponseLength: assistantResponse.length,
+          });
         } else if (strategy.approach === "sequential") {
           // Try first model, if unsatisfactory try second
+          logAgent("SEQUENTIAL EXECUTION STARTING", {
+            firstModel: "grok",
+            fallbackModel: "gemini-flash",
+            confidenceThreshold: 0.7,
+          });
+
           const firstResult = await grokModel.query(
             input.question,
             PROMPTS.RESEARCH_ASSISTANT,
             conversationHistory as any
           );
 
+          logAgent("FIRST MODEL RESULT", {
+            model: "grok",
+            confidence: firstResult.confidence,
+            meetsThreshold: firstResult.confidence >= 0.7,
+            executionTime: firstResult.data?.executionTime,
+          });
+
           responses.push({
             model: "grok",
-            response: firstResult.data?.response,
+            response: firstResult.data?.response || "",
             confidence: firstResult.confidence,
             executionTime: firstResult.data?.executionTime,
             tokenUsage: firstResult.data?.tokenUsage,
+            error: firstResult.error,
           });
 
           // Check if confidence is acceptable, otherwise try second model
-          if (firstResult.confidence < 0.7) {
+          if (
+            firstResult.confidence < 0.7 ||
+            !firstResult.data?.response ||
+            firstResult.data.response.trim().length === 0
+          ) {
+            logAgent("FALLBACK TRIGGERED", {
+              reason:
+                firstResult.confidence < 0.7
+                  ? `Confidence ${firstResult.confidence} < 0.7 threshold`
+                  : "Empty response from first model",
+              action: "Trying gemini-flash as fallback",
+            });
+
             const secondResult = await geminiModel.query(
               input.question,
               PROMPTS.RESEARCH_ASSISTANT,
               conversationHistory as any
             );
+
+            logAgent("FALLBACK MODEL RESULT", {
+              model: "gemini-flash",
+              confidence: secondResult.confidence,
+              executionTime: secondResult.data?.executionTime,
+              willUse:
+                secondResult.confidence > firstResult.confidence ||
+                (secondResult.data?.response &&
+                  secondResult.data.response.trim().length > 0)
+                  ? "gemini-flash"
+                  : "grok",
+            });
+
             responses.push({
               model: "gemini-flash",
-              response: secondResult.data?.response,
+              response: secondResult.data?.response || "",
               confidence: secondResult.confidence,
               executionTime: secondResult.data?.executionTime,
               tokenUsage: secondResult.data?.tokenUsage,
+              error: secondResult.error,
             });
 
-            // Use second response if it's better
-            assistantResponse =
-              secondResult.confidence > firstResult.confidence
-                ? secondResult.data?.response || ""
-                : firstResult.data?.response || "";
+            // Use second response if it's better or first was empty
+            const hasValidSecondResponse =
+              secondResult.data?.response &&
+              secondResult.data.response.trim().length > 0;
+            const hasValidFirstResponse =
+              firstResult.data?.response &&
+              firstResult.data.response.trim().length > 0;
+
+            if (
+              hasValidSecondResponse &&
+              (secondResult.confidence > firstResult.confidence ||
+                !hasValidFirstResponse)
+            ) {
+              assistantResponse = secondResult.data.response;
+            } else if (hasValidFirstResponse) {
+              assistantResponse = firstResult.data.response;
+            } else {
+              throw new Error(
+                "Both sequential models returned empty responses"
+              );
+            }
           } else {
-            assistantResponse = firstResult.data?.response || "";
+            logAgent("NO FALLBACK NEEDED", {
+              reason: `Confidence ${firstResult.confidence} >= 0.7 threshold`,
+              usingModel: "grok",
+              responseLength: firstResult.data?.response?.length || 0,
+            });
+            assistantResponse = firstResult.data.response;
           }
         } else if (strategy.approach === "ensemble") {
           // Execute both, return all responses for user to choose
+          logAgent("ENSEMBLE EXECUTION STARTING", {
+            models: ["grok", "gemini-flash"],
+            note: "Both models executing, will blend with consensus approach",
+          });
+
           const results = await Promise.all([
             grokModel.query(
               input.question,
@@ -503,31 +721,81 @@ export const agentRouter = router({
             ),
           ]);
 
+          logAgent("ENSEMBLE EXECUTION COMPLETE", {
+            grokResult: {
+              responseLength: results[0].data?.response?.length || 0,
+              confidence: results[0].confidence,
+            },
+            geminiResult: {
+              responseLength: results[1].data?.response?.length || 0,
+              confidence: results[1].confidence,
+            },
+          });
+
           responses = [
             {
               model: "grok",
-              response: results[0].data?.response,
+              response: results[0].data?.response || "",
               confidence: results[0].confidence,
               executionTime: results[0].data?.executionTime,
               tokenUsage: results[0].data?.tokenUsage,
+              error: results[0].error,
             },
             {
               model: "gemini-flash",
-              response: results[1].data?.response,
+              response: results[1].data?.response || "",
               confidence: results[1].confidence,
               executionTime: results[1].data?.executionTime,
               tokenUsage: results[1].data?.tokenUsage,
+              error: results[1].error,
             },
           ];
 
           // Combine both responses with ensemble synthesis
-          assistantResponse = await responseSynthesizer.blendResponses(
-            input.question,
-            [results[0].data?.response || "", results[1].data?.response || ""],
-            PROMPTS.RESEARCH_ASSISTANT,
-            "consensus"
-          );
+          logAgent("ENSEMBLE SYNTHESIS", {
+            approach: "consensus",
+            action: "Finding consensus across both model responses",
+            validResponses: [
+              results[0].data?.response ? true : false,
+              results[1].data?.response ? true : false,
+            ],
+          });
+
+          // Filter out empty responses and use non-empty ones
+          const validResponses = [
+            results[0].data?.response || "",
+            results[1].data?.response || "",
+          ].filter((r) => r.trim().length > 0);
+
+          if (validResponses.length === 0) {
+            throw new Error("Both models failed to generate valid responses");
+          }
+
+          if (validResponses.length === 1) {
+            assistantResponse = validResponses[0];
+          } else {
+            assistantResponse = await responseSynthesizer.blendResponses(
+              input.question,
+              validResponses,
+              PROMPTS.RESEARCH_ASSISTANT,
+              "consensus"
+            );
+          }
+
+          logAgent("ENSEMBLE COMPLETE", {
+            finalResponseLength: assistantResponse.length,
+          });
         }
+
+        logAgent("MODEL EXECUTION SUMMARY", {
+          totalResponses: responses.length,
+          models: responses.map((r) => r.model),
+          confidences: responses.map((r) => ({
+            model: r.model,
+            confidence: r.confidence,
+          })),
+          finalResponseLength: assistantResponse.length,
+        });
 
         modelSelectionMetadata.responses = responses;
         modelSelectionMetadata.priority = priority;
@@ -554,6 +822,24 @@ export const agentRouter = router({
         modelSelectionMetadata.fallback = true;
         modelSelectionMetadata.error = (modelError as Error).message;
       }
+
+      // Validate assistant response before saving
+      if (!assistantResponse || assistantResponse.trim().length === 0) {
+        console.error("❌ Empty assistant response detected!");
+        console.error({
+          modelSelectionMetadata,
+          conversationHistoryLength: conversationHistory.length,
+          priority,
+        });
+        assistantResponse =
+          "I was unable to generate a response. Please try again with a different question.";
+      }
+
+      logAgent("RESPONSE GENERATED", {
+        responseLength: assistantResponse.length,
+        contentPreview: assistantResponse.substring(0, 200),
+        timestamp: new Date().toISOString(),
+      });
 
       // Save assistant message
       const assistantMessage = await prisma.conversationMessage.create({

@@ -17,16 +17,17 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@trpc/server": "catalog:",
-    "@trpc/client": "catalog:",
-    "hono": "catalog:",
-    "dotenv": "catalog:",
-    "zod": "catalog:",
-    "ai": "^5.0.0",
-    "@ai-sdk/openai": "^1.0.0",
+    "@agentic-company-researcher/auth": "workspace:*",
+    "@agentic-company-researcher/db": "workspace:*",
     "@ai-sdk/anthropic": "^1.0.0",
     "@ai-sdk/google": "^2.0.0",
-    "@agentic-company-researcher/auth": "workspace:*",
-    "@agentic-company-researcher/db": "workspace:*"
+    "@ai-sdk/openai": "^1.0.0",
+    "@ai-sdk/xai": "^2.0.39",
+    "@trpc/client": "catalog:",
+    "@trpc/server": "catalog:",
+    "ai": "^5.0.0",
+    "dotenv": "catalog:",
+    "hono": "catalog:",
+    "zod": "catalog:"
   }
 }

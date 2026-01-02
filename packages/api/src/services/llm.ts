@@ -1,7 +1,7 @@
 import { generateText as aiGenerateText, streamText as aiStreamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createXai } from "@ai-sdk/xai";
 
 export interface Message {
   role: "user" | "assistant" | "system";
@@ -41,20 +41,11 @@ function getModel(config: LLMConfig) {
   switch (provider) {
     case "grok":
     case "xai": {
-      // Grok uses OpenAI-compatible API
-      const grok = createOpenAI({
+      // Use official X.AI SDK (AI SDK v5 compatible)
+      const xai = createXai({
         apiKey: config.apiKey || process.env.XAI_API_KEY,
-        baseURL: config.baseUrl || "https://api.x.ai/v1",
       });
-      return grok(model);
-    }
-
-    case "anthropic":
-    case "claude": {
-      const anthropic = createAnthropic({
-        apiKey: config.apiKey || process.env.ANTHROPIC_API_KEY,
-      });
-      return anthropic(model);
+      return xai(model);
     }
 
     case "gemini":

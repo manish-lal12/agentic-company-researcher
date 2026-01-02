@@ -1,5 +1,18 @@
 import { chat } from "../../services/llm";
 
+// ========== DEBUG LOGGING ==========
+const DEBUG_SYNTHESIZER = true;
+
+function logSynthesizer(stage: string, data: any) {
+  if (!DEBUG_SYNTHESIZER) return;
+  console.log("\n" + "🔀".repeat(30));
+  console.log(`🧪 [RESPONSE SYNTHESIZER] ${stage}`);
+  console.log("🔀".repeat(30));
+  console.log(JSON.stringify(data, null, 2));
+  console.log("🔀".repeat(30) + "\n");
+}
+// ====================================
+
 export interface ModelComparison {
   models: string[];
   responses: string[];
@@ -27,6 +40,14 @@ export class ResponseSynthesizer {
     responses: string[],
     systemPrompt: string
   ): Promise<ModelComparison> {
+    logSynthesizer("COMPARING RESPONSES", {
+      question: question.substring(0, 80) + "...",
+      responseCount: responses.length,
+      responseLengths: responses.map((r, i) => ({
+        [`model-${i + 1}`]: r?.length || 0,
+      })),
+    });
+
     if (!responses || responses.length === 0) {
       throw new Error("No responses to compare");
     }
@@ -92,7 +113,7 @@ export class ResponseSynthesizer {
 
       const result = await chat({
         provider: "gemini",
-        model: "gemini-2.0-flash",
+        model: process.env.LLM_MODEL || "gemini-2.5-flash-lite",
         messages: [
           {
             role: "system",
@@ -109,7 +130,7 @@ export class ResponseSynthesizer {
 
       try {
         const parsed = JSON.parse(result.text);
-        return {
+        const comparison = {
           models: responses.map((_, i) => `model-${i + 1}`),
           responses: responses,
           similarities: parsed.similarities || 0.5,
@@ -117,6 +138,15 @@ export class ResponseSynthesizer {
           recommendation: parsed.recommendation || "Use combined approach",
           quality: parsed.qualityScores || {},
         };
+
+        logSynthesizer("COMPARISON RESULT", {
+          similarities: comparison.similarities,
+          conflictsFound: comparison.conflicts.length,
+          recommendation: comparison.recommendation,
+          qualityScores: comparison.quality,
+        });
+
+        return comparison;
       } catch (e) {
         return {
           models: responses.map((_, i) => `model-${i + 1}`),
@@ -149,6 +179,17 @@ export class ResponseSynthesizer {
     systemPrompt: string,
     approach: "best" | "blend" | "consensus" = "best"
   ): Promise<string> {
+    logSynthesizer("BLENDING RESPONSES", {
+      approach: approach,
+      approachDescription:
+        approach === "best"
+          ? "🏆 Select highest quality response"
+          : approach === "blend"
+          ? "🎨 Synthesize into unified response"
+          : "🤝 Find consensus across responses",
+      responseCount: responses.length,
+    });
+
     if (!responses || responses.length === 0) {
       throw new Error("No responses to blend");
     }
@@ -196,7 +237,7 @@ export class ResponseSynthesizer {
 
       const result = await chat({
         provider: "gemini",
-        model: "gemini-2.0-flash",
+        model: process.env.LLM_MODEL || "gemini-2.5-flash-lite",
         messages: [
           {
             role: "system",
@@ -221,7 +262,7 @@ export class ResponseSynthesizer {
 
       const result = await chat({
         provider: "gemini",
-        model: "gemini-2.0-flash",
+        model: process.env.LLM_MODEL || "gemini-2.5-flash-lite",
         messages: [
           {
             role: "system",
