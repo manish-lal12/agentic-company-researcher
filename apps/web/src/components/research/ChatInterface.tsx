@@ -238,8 +238,7 @@ export function ChatInterface({
       }
 
       // Add assistant message BEFORE sync to show response immediately
-      const assistantContent =
-        response.assistantMessage?.content || response.assistantMessage || "";
+      const assistantContent = response.assistantMessage?.content ?? "";
 
       if (!assistantContent) {
         console.warn("⚠️ Assistant response is empty!", {
